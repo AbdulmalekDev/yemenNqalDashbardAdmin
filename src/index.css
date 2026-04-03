@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for Yemen Naql Dashboard */
+body {
+  font-family: 'Cairo', 'Tajawal', 'Noto Sans Arabic', sans-serif;
+  direction: rtl;
+}
+
+.glass-card {
+  @apply bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, #1e2b3a 0%, #3b82f6 50%, #f59e0b 100%);
+}
+
+.primary-gradient {
+  background: linear-gradient(135deg, #1e2b3a 0%, #3b82f6 100%);
+}
+
+.accent-gradient {
+  background: linear-gradient(135deg, #ECAE3C 0%, #facc15 100%);
+}
+
+/* Yemen Naql Brand Colors */
+:root {
+  --color-primary: #1e2b3a;
+  --color-primary-dark: #0E3D52;
+  --color-secondary: #3b82f6;
+  --color-accent: #ECAE3C;
+  --color-background: #E7ECEE;
+}
+
+/* Responsive Design Enhancements */
+@media (max-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* Enhanced Interactive Elements */
+.interactive-card {
+  transition: all 0.3s ease-in-out;
+}
+
+.interactive-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(236, 174, 60, 0.1);
+}
+
+/* Mobile-first responsive text */
+@media (max-width: 640px) {
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  .text-2xl {
+    font-size: 1.25rem;
+  }
+
+  .text-xl {
+    font-size: 1.125rem;
+  }
+}

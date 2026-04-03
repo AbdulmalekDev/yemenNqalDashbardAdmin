@@ -1,0 +1,24 @@
+# file .env
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Env files (حساسة)
+.env
+.env.example
+.env.development
+.env.production
+
+# Build folders
+dist/
+build/
+
+# IDE / OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
