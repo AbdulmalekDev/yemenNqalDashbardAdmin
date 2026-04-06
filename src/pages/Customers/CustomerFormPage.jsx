@@ -42,9 +42,14 @@ const CustomerFormPage = () => {
     // تعبئة البيانات في حالة التعديل
     useEffect(() => {
         if (isEdit && customer) {
+            let cleanPhone = (customer.phone || '').toString();
+            if (cleanPhone.startsWith('+967')) cleanPhone = cleanPhone.substring(4);
+            else if (cleanPhone.startsWith('967')) cleanPhone = cleanPhone.substring(3);
+            else if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
+
             reset({
                 name: customer.name || '',
-                phone: customer.phone || '',
+                phone: cleanPhone,
                 email: customer.email || '',
             });
         }
@@ -66,8 +71,14 @@ const CustomerFormPage = () => {
 
     const onSubmit = async (data) => {
         try {
+            // Format phone correctly before saving or dirty check
+            const formattedData = { ...data };
+            if (formattedData.phone && !formattedData.phone.startsWith('+967')) {
+                formattedData.phone = `+967${formattedData.phone}`;
+            }
+
             if (isEdit) {
-                const dirtyData = getDirtyFields(data, customer);
+                const dirtyData = getDirtyFields(formattedData, customer);
                 
                 if (Object.keys(dirtyData).length === 0) {
                     showNotification('لم يتم إجراء أي تغييرات للحفظ', 'info');
@@ -84,7 +95,8 @@ const CustomerFormPage = () => {
             navigate('/customers');
         } catch (error) {
             console.error('Error saving customer:', error);
-            showNotification('حدث خطأ أثناء حفظ البيانات', 'error');
+            const errorMessage = error?.response?.data?.message || error?.original?.response?.data?.message || error?.message || 'حدث خطأ أثناء حفظ البيانات';
+            showNotification(errorMessage, 'error');
         }
     };
 
@@ -157,7 +169,13 @@ const CustomerFormPage = () => {
                                     <div className="relative group">
                                         <Phone className="absolute right-3 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                                         <input
-                                            {...register('phone', { required: 'رقم الهاتف مطلوب' })}
+                                            {...register('phone', { 
+                                                required: 'رقم الهاتف مطلوب',
+                                                pattern: {
+                                                    value: /^7\d{8}$/,
+                                                    message: 'يجب أن يتكون رقم الهاتف من 9 أرقام ويبدأ بالرقم 7 (مثال: 777123456)'
+                                                }
+                                            })}
                                             placeholder="7xxxxxxxx"
                                             className={`w-full pr-11 pl-4 py-3 bg-gray-50 border-2 rounded-xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all ${errors.phone ? 'border-red-300 bg-red-50' : 'border-transparent'}`}
                                         />

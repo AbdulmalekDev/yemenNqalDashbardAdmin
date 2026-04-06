@@ -87,7 +87,11 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (email) => {
     try {
       const { data } = await api.post("/auth/reset-password", { email });
-      return { success: data.success, error: data.message };
+      return {
+        success: data.success,
+        message: data.message,
+        link: data.link // نلتقط الرابط من الباك إند
+      };
     } catch (error) {
       return { success: false, error: error.message || 'فشل في إرسال بريد استعادة كلمة المرور' };
     }
@@ -95,10 +99,19 @@ export const AuthProvider = ({ children }) => {
 
   const confirmResetPassword = async (oobCode, newPassword) => {
     try {
-      const { data } = await api.post("/auth/confirm-reset-password", { oobCode, newPassword });
+      const { data } = await api.post("/auth/confirm-reset", { oobCode, newPassword });
       return { success: data.success, error: data.message };
     } catch (error) {
-      return { success: false, error: error.message || 'فشل في تأكيد تغيير كلمة المرور' };
+      return { success: false, error: error.response?.data?.message || error.message || 'فشل في تأكيد تغيير كلمة المرور' };
+    }
+  };
+
+  const adminResetUserPassword = async (email) => {
+    try {
+      const { data } = await api.post("/auth/admin-reset-password", { email });
+      return { success: data.success, link: data.link, message: data.message };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || error.message || 'فشل في توليد رابط إعادة التعيين' };
     }
   };
 
@@ -136,6 +149,7 @@ export const AuthProvider = ({ children }) => {
     hasPermission,
     resetPassword,
     confirmResetPassword,
+    adminResetUserPassword,
   };
 
   return (

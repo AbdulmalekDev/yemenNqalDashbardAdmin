@@ -10,6 +10,11 @@ yarn-error.log
 .env.development
 .env.production
 
+node_modules/
+dist/
+.env
+.DS_Store
+
 # Build folders
 dist/
 build/
@@ -20,5 +25,5 @@ build/
 Thumbs.db
 
 # Logs
-logs/
-*.log
+# logs/
+# *.log

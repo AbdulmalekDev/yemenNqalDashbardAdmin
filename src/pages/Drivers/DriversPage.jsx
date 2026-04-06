@@ -19,8 +19,9 @@ import {
   Edit,
   FileText,
   Printer,
+  Trash2,
 } from 'lucide-react';
-import { useDrivers, useUpdateDriverStatus } from '../../hooks/useDrivers';
+import { useDrivers, useUpdateDriverStatus, useDriversSSE, useDeleteDriver } from '../../hooks/useDrivers';
 import { useAuth } from '../../context/AuthContext';
 
 const DriversPage = () => {
@@ -41,6 +42,9 @@ const DriversPage = () => {
   // ==================== React Query & SSE ====================
   // طلب الحقول المحددة فقط كما في الشريحة 5
   const fields = 'id,name,firstName,phone,vehicleType,plateNumber,verificationStatus,isOnline,rating,completedTrips,createdAt';
+
+  // تفعيل SSE للتحديثات الفورية للسائقين
+  useDriversSSE();
 
   const { data: response, isLoading, isError, error, refetch } = useDrivers({
     limit,
@@ -76,6 +80,22 @@ const DriversPage = () => {
       } catch (error) {
         toast.error("حدث خطأ أثناء تعديل الحالة");
       }
+    }
+  };
+
+  // ==================== حذف السائق ====================
+  const deleteDriver = useDeleteDriver();
+  const handleDeleteDriver = async (driverId) => {
+    if (!window.confirm("هل أنت متأكد من رغبتك في حذف هذا السائق؟ لا يمكن التراجع عن هذا الإجراء.")) return;
+
+    try {
+      await deleteDriver.mutateAsync(driverId);
+      toast.success("تم حذف السائق بنجاح", {
+        style: { borderRadius: '15px' },
+        icon: '🗑️'
+      });
+    } catch (err) {
+      toast.error("حدث خطأ أثناء حذف السائق");
     }
   };
 
@@ -381,6 +401,17 @@ const DriversPage = () => {
                             title={accountStatus === 'مقبول' ? 'إيقاف الحساب' : 'فك التعليق'}
                           >
                             <Pause className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        {hasPermission('manage_drivers') && (
+                          <button
+                            onClick={() => handleDeleteDriver(driver.id)}
+                            disabled={deleteDriver.isPending}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="حذف السائق"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>

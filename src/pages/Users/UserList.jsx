@@ -17,7 +17,8 @@ import {
   Phone,
   FileText,
   Printer,
-  ChevronDown
+  ChevronDown,
+  Key
 } from 'lucide-react';
 import { getUsers, toggleUserStatus, deleteUser } from './UserService';
 import { useAuth } from '../../context/AuthContext';
@@ -27,7 +28,7 @@ import ReportService from '../../services/ReportService';
 
 const UserList = () => {
   const queryClient = useQueryClient();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, adminResetUserPassword } = useAuth();
   const { showNotification } = useNotification();
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,7 +67,7 @@ const UserList = () => {
         ...old,
         pages: old.pages.map(page => ({
           ...page,
-          data: page.data.map(user => 
+          data: page.data.map(user =>
             user.uid === uid ? { ...user, status: disabled ? 'disabled' : 'active' } : user
           )
         }))
@@ -180,7 +181,7 @@ const UserList = () => {
           </h1>
           <p className="text-gray-500 font-medium text-base">عرض وتحكم في حسابات الإداريين والمشرفين والنظام</p>
         </div>
-        
+
         <div className="flex items-center gap-4">
 
 
@@ -248,11 +249,10 @@ const UserList = () => {
                   {u.phone || '—'}
                 </td>
                 <td className="px-8 py-6 whitespace-nowrap">
-                  <div className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-normal uppercase tracking-wider ${
-                    u.role === 'manager' ? 'bg-purple-100 text-purple-700' : 
-                    u.role === 'supervisor' ? 'bg-blue-100 text-blue-700' : 
-                    'bg-gray-100 text-gray-700'
-                  }`}>
+                  <div className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-normal uppercase tracking-wider ${u.role === 'manager' ? 'bg-purple-100 text-purple-700' :
+                    u.role === 'supervisor' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
                     {u.role === 'manager' && <ShieldCheck className="w-3.5 h-3.5" />}
                     {u.role === 'supervisor' && <Shield className="w-3.5 h-3.5" />}
                     {u.role === 'default' && <Users className="w-3.5 h-3.5" />}

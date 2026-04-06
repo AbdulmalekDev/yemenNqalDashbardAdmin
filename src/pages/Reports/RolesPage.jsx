@@ -123,8 +123,8 @@ const RolesPage = () => {
           </div>
         </div>
 
-        
-        <ReportActions 
+
+        <ReportActions
           onExportExcel={exportExcel}
           onExportPDF={exportPDF}
           onRefresh={refetch}
@@ -213,11 +213,10 @@ const RolesPage = () => {
                     {admin.phone || admin.phoneNumber || '-'}
                   </td>
                   <td className="px-8 py-6">
-                    <span className={`inline-flex items-center px-4 py-1.5 rounded-xl text-[11px] font-black tracking-wider shadow-sm border ${
-                      admin.role?.toLowerCase() === 'manager' || admin.role === 'مدير' 
-                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                    <span className={`inline-flex items-center px-4 py-1.5 rounded-xl text-[11px] font-black tracking-wider shadow-sm border ${admin.role?.toLowerCase() === 'manager' || admin.role === 'مدير'
+                        ? 'bg-purple-100 text-purple-700 border-purple-200'
                         : 'bg-indigo-100 text-indigo-700 border-indigo-200'
-                    }`}>
+                      }`}>
                       {admin.role || 'مشرف'}
                     </span>
                   </td>

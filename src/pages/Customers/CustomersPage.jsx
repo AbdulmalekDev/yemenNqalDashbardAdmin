@@ -20,8 +20,9 @@ import {
   Edit,
   FileText,
   Printer,
+  Trash2,
 } from 'lucide-react';
-import { useCustomers, useUpdateCustomerStatus } from '../../hooks/useCustomers';
+import { useCustomers, useUpdateCustomerStatus, useDeleteCustomer } from '../../hooks/useCustomers';
 import { useAuth } from '../../context/AuthContext';
 
 const CustomersPage = () => {
@@ -65,6 +66,22 @@ const CustomersPage = () => {
       });
     } catch (err) {
       toast.error("حدث خطأ أثناء تعديل الحظر");
+    }
+  };
+
+  // ==================== حذف العميل ====================
+  const deleteCustomer = useDeleteCustomer();
+  const handleDeleteCustomer = async (customerId) => {
+    if (!window.confirm("هل أنت متأكد من رغبتك في حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء.")) return;
+
+    try {
+      await deleteCustomer.mutateAsync(customerId);
+      toast.success("تم حذف العميل بنجاح", {
+        style: { borderRadius: '15px' },
+        icon: '🗑️'
+      });
+    } catch (err) {
+      toast.error("حدث خطأ أثناء حذف العميل");
     }
   };
 
@@ -361,6 +378,17 @@ const CustomersPage = () => {
                               <UserX className="w-4 h-4" />
                             </button>
                           )
+                        )}
+
+                        {hasPermission('manage_customers') && (
+                          <button
+                            onClick={() => handleDeleteCustomer(customer.id)}
+                            disabled={deleteCustomer.isPending}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
+                            title="حذف العميل"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
                     </td>

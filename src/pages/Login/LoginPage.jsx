@@ -66,11 +66,12 @@ const LoginPage = () => {
 
     const result = await resetPassword(forgotEmail);
     if (result.success) {
-      setForgotMessage({ text: 'تم إرسال رابط استعادة كلمة المرور إلى بريدك الإلكتروني', type: 'success' });
-      showNotification('تم إرسال رابط استعادة كلمة المرور', 'success');
-      setTimeout(() => setShowForgotModal(false), 3000);
+      setForgotMessage({ text: 'تم توليد رابط استعادة كلمة المرور الرسمي. يرجى مراجعة بريدك الإلكتروني (أو سجلات السيرفر إذا كنت في مرحلة التجربة).', type: 'success' });
+      showNotification('تم إرسال رابط استعادة كلمة المرور بنجاح', 'success');
+      // لا نحتاج لإغلاق النافذة فوراً، لنعطيه فرصة لقراءة الرسالة
+      setTimeout(() => setShowForgotModal(false), 5000);
     } else {
-      setForgotMessage({ text: result.error, type: 'error' });
+      setForgotMessage({ text: result.error || 'فشل إرسال الرابط، تأكد من أن بريدك مسجل كمسؤول', type: 'error' });
       showNotification(result.error, 'error');
     }
     setForgotLoading(false);

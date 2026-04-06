@@ -362,7 +362,7 @@ class ReportService {
                     s.processArabicText(item.role || 'مشرف'),
                     s.processArabicText(item.disabled ? 'معطل' : 'نشط')
                 ],
-                colStyles: { 
+                colStyles: {
                     0: { cellWidth: 25, halign: 'center' }, // Status
                     1: { cellWidth: 35, halign: 'center' }, // Role
                     2: { cellWidth: 35, halign: 'center' }, // Phone

@@ -15,7 +15,7 @@ const Sidebar = ({
   toggleSubmenu,
   hasPermission
 }) => {
-  const dynamicLogo = settings?.system?.logo || '/assets/images/logo.png';
+  const dynamicLogo = settings?.system?.logo || '/assets/images/LastLogoYemenNqal.png';
 
   // تصفية القائمة بناءً على دور المستخدم وصلاحياته
   const filteredMenuItems = ADMIN_MENU_ITEMS
@@ -48,7 +48,7 @@ const Sidebar = ({
           <img
             src={dynamicLogo}
             alt="يمن نقل - Yemen Naql"
-            className="w-10 h-10 object-contain bg-white rounded p-1"
+            className="w-10 h-10 object-contain bg-black rounded p-1"
           />
           <div className="text-right">
             <span className="text-base font-bold text-white block">يمن نقل</span>

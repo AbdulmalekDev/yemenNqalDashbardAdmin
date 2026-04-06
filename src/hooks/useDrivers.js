@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import {
     getDrivers,
     getDriverById,
@@ -6,7 +7,10 @@ import {
     verifyDriver as verifyDriverAPI,
     addDriver as addDriverAPI,
     updateDriver as updateDriverAPI,
+    deleteDriver as deleteDriverAPI,
 } from "../services/driverService";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // ==================== جلب جميع السائقين ====================
 export const useDrivers = (params = {}) => {
@@ -114,4 +118,98 @@ export const useUpdateDriver = () => {
             queryClient.invalidateQueries({ queryKey: ["drivers", id] });
         },
     });
+};
+
+// ==================== حذف سائق ====================
+export const useDeleteDriver = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id) => deleteDriverAPI(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["drivers"] });
+        },
+    });
+};
+
+// ==================== SSE: بث تحديثات السائقين المباشرة ====================
+export const useDriversSSE = () => {
+    const queryClient = useQueryClient();
+    const eventSourceRef = useRef(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const connectSSE = async () => {
+            try {
+                const token = localStorage.getItem('adminToken');
+                if (!token) return;
+
+                if (eventSourceRef.current) {
+                    eventSourceRef.current.close();
+                }
+
+                const url = `${API_BASE_URL}/drivers/stream?token=${encodeURIComponent(token)}`;
+                const es = new EventSource(url);
+                eventSourceRef.current = es;
+
+                es.onmessage = (event) => {
+                    if (cancelled) return;
+                    try {
+                        const payload = JSON.parse(event.data);
+                        if (payload.type === "drivers_update" && Array.isArray(payload.data)) {
+                            // نقوم بتحديث كاش السائقين بالقائمة الجديدة (البيانات الحية المحدثة)
+                            const updatedDriversList = payload.data;
+                            
+                            // Iterate through the query cache and update all "drivers" queries
+                            queryClient.setQueriesData({ queryKey: ["drivers"] }, (old) => {
+                                if (!old || !old.data) return old;
+                                
+                                // if old is a single driver object
+                                if (!Array.isArray(old.data)) {
+                                     // (not a list, ignore)
+                                     return old;
+                                }
+
+                                // Merging real-time data with currently viewed page
+                                // Since SSE sends all drivers, for a robust paginated view we update the specific ones that are visible,
+                                // or simply replace the list if pagination matches (simplification: we map updates).
+                                const updatedPageData = old.data.map(existingDriver => {
+                                    const refreshed = updatedDriversList.find(d => d.id === existingDriver.id);
+                                    return refreshed || existingDriver;
+                                });
+
+                                return {
+                                    ...old,
+                                    data: updatedPageData
+                                };
+                            });
+                        }
+                    } catch {
+                        // ignore malformed messages
+                    }
+                };
+
+                es.onerror = () => {
+                    es.close();
+                    if (!cancelled) {
+                        setTimeout(connectSSE, 5000);
+                    }
+                };
+            } catch (err) {
+                console.error("SSE connection error:", err);
+                if (!cancelled) {
+                    setTimeout(connectSSE, 5000);
+                }
+            }
+        };
+
+        connectSSE();
+
+        return () => {
+            cancelled = true;
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+            }
+        };
+    }, [queryClient]);
 };

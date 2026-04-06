@@ -20,7 +20,7 @@ class JsPDFGenerator {
             format: 'a4',
             putOnlyUsedFonts: true
         });
-        
+
         this._bidi = bidiFactory();
         this.fontName = 'Tajawal';
         this.isFontRegistered = false;
@@ -37,11 +37,11 @@ class JsPDFGenerator {
         try {
             // 1. Reshape: connect letters (e.g., ع م ر -> عمر)
             const reshaped = arabicReshaper.reshape(str);
-            
+
             // 2. Bidi: reorder characters for RTL rendering
             const bidiLevels = this._bidi.getEmbeddingLevels(reshaped, 'rtl');
             const visual = this._bidi.getReorderedString(reshaped, bidiLevels);
-            
+
             return visual;
         } catch (error) {
             console.error("Arabic shaping error:", error);
@@ -54,10 +54,10 @@ class JsPDFGenerator {
      */
     async registerFont(base64Data, name = 'Tajawal', style = 'normal') {
         if (!base64Data) {
-           console.warn(`Font data missing for ${name}`);
-           return;
+            console.warn(`Font data missing for ${name}`);
+            return;
         }
-        
+
         const filename = `${name}-${style}.ttf`;
         this.doc.addFileToVFS(filename, base64Data);
         this.doc.addFont(filename, name, style);
@@ -69,17 +69,17 @@ class JsPDFGenerator {
      */
     addHeader(title, logoUrl = '/assets/images/logo.png', stats = null) {
         const pageWidth = this.doc.internal.pageSize.getWidth();
-        
+
         // Background branding
         this.doc.setFillColor(248, 250, 252); // slate-50
         this.doc.rect(0, 0, pageWidth, 45, 'F');
-        
+
         // System Name & Logo
         this.doc.setFont(this.fontName, 'bold');
         this.doc.setTextColor(15, 23, 42); // slate-900
         this.doc.setFontSize(16);
         this.doc.text(this.fixArabic("نظام يمن نقل - Yemen Naql"), pageWidth - 15, 15, { align: 'right' });
-        
+
         this.doc.setFontSize(10);
         this.doc.setTextColor(100, 116, 139); // slate-500
         this.doc.text(this.fixArabic("لوحة التحكم - التقارير الإحصائية"), pageWidth - 15, 22, { align: 'right' });
@@ -99,7 +99,7 @@ class JsPDFGenerator {
         // Underline
         this.doc.setDrawColor(226, 232, 240); // slate-200
         this.doc.line(15, 45, pageWidth - 15, 45);
-        
+
         return 45; // Returns the height used
     }
 
@@ -109,7 +109,7 @@ class JsPDFGenerator {
     addSummary(metrics = []) {
         const pageWidth = this.doc.internal.pageSize.getWidth();
         const startY = 55;
-        
+
         this.doc.setFont(this.fontName, 'bold');
         this.doc.setFontSize(12);
         this.doc.setTextColor(15, 23, 42);
@@ -120,15 +120,15 @@ class JsPDFGenerator {
         metrics.forEach((m, i) => {
             const x = 15 + (i * cardWidth);
             const y = startY + 5;
-            
+
             this.doc.setDrawColor(241, 245, 249);
             this.doc.setFillColor(255, 255, 255);
             this.doc.roundedRect(x, y, cardWidth - 5, 20, 2, 2, 'FD');
-            
+
             this.doc.setFontSize(8);
             this.doc.setTextColor(100, 116, 139);
             this.doc.text(this.fixArabic(m.label), x + (cardWidth / 2) - 2.5, y + 6, { align: 'center' });
-            
+
             this.doc.setFontSize(11);
             this.doc.setTextColor(30, 41, 59);
             this.doc.text(this.fixArabic(String(m.value)), x + (cardWidth / 2) - 2.5, y + 14, { align: 'center' });
@@ -143,9 +143,9 @@ class JsPDFGenerator {
     addTable(headers, data, startY) {
         // Reverse headers for RTL display in AutoTable
         const reversedHeaders = [...headers].reverse().map(h => this.fixArabic(h));
-        
+
         // Reverse each data row
-        const reversedData = data.map(row => 
+        const reversedData = data.map(row =>
             [...row].reverse().map(cell => this.fixArabic(cell))
         );
 
@@ -174,12 +174,12 @@ class JsPDFGenerator {
                 // Footer: Page numbers
                 const pageWidth = this.doc.internal.pageSize.getWidth();
                 const pageHeight = this.doc.internal.pageSize.getHeight();
-                
+
                 this.doc.setFontSize(8);
                 this.doc.setTextColor(148, 163, 184);
                 const str = this.fixArabic(`صفحة ${data.pageNumber} من ${this.doc.internal.getNumberOfPages()}`);
                 this.doc.text(str, pageWidth / 2, pageHeight - 10, { align: 'center' });
-                
+
                 const rights = this.fixArabic("جميع الحقوق محفوظة © يمن نقل - 2026");
                 this.doc.text(rights, pageWidth - 15, pageHeight - 10, { align: 'right' });
             }

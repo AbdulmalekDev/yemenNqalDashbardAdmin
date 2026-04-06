@@ -11,6 +11,9 @@ import {
   Eye,
   AlertCircle,
   RefreshCw,
+  Clock,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDashboard, useDashboardSSE } from "../../hooks/useDashboard";
@@ -86,6 +89,54 @@ const DashboardPage = () => {
     order.clientName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // ==================== Helper Functions ====================
+  const getStatusBadge = (status) => {
+    const statusClasses = {
+      'accepted': 'bg-blue-100 text-blue-800',
+      'searching': 'bg-orange-100 text-orange-800',
+      'completed': 'bg-green-100 text-green-800',
+      'cancelled': 'bg-red-100 text-red-800',
+      'no_driver': 'bg-gray-100 text-gray-800',
+      'arrived': 'bg-green-100 text-green-800',
+      'rated': 'bg-green-100 text-green-800',
+    };
+    return statusClasses[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusIcon = (status) => {
+    const iconClasses = {
+      'accepted': Clock,
+      'searching': Truck,
+      'completed': CheckCircle,
+      'cancelled': XCircle,
+      'no_driver': Clock,
+      'arrived': Truck,
+      'rated': CheckCircle,
+    };
+    const Icon = iconClasses[status] || Clock;
+    return <Icon className="w-4 h-4" />;
+  };
+
+  const normalizeStatus = (status) => {
+    const map = {
+      'no_driver': 'بانتظار السائق',
+      'accepted': 'مقبول',
+      'searching': 'جاري',
+      'completed': 'مكتمل',
+      'cancelled': 'ملغي',
+      'arrived': 'وصل موقع العميل',
+      'rated': 'تم التقييم',
+    };
+    return map[status] ?? (status || '-');
+  };
+
+  const formatDate = (ts) => {
+    if (!ts) return '-';
+    // Handle Firestore Timestamp or ISO string
+    const date = ts._seconds ? new Date(ts._seconds * 1000) : ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+    return date.toLocaleDateString('ar-SA');
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -149,7 +200,7 @@ const DashboardPage = () => {
                 <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
                 <span className="font-normal text-gray-900">غير متصل</span>
               </div>
-              <span className="text-lg font-normal text-gray-600">{(stats.totalDrivers || 0) - (stats.connectedDrivers || 0)}</span>
+              <span className="text-lg font-normal text-gray-600">{stats.offlineDrivers !== undefined ? stats.offlineDrivers : ((stats.totalDrivers || 0) - (stats.connectedDrivers || 0))}</span>
             </div>
 
             <div className="flex items-center justify-between p-3 bg-accent-50 rounded-lg">
@@ -158,7 +209,7 @@ const DashboardPage = () => {
                 <span className="font-normal text-gray-900">في انتظار الطلب</span>
               </div>
               <span className="text-lg font-normal text-accent-600">
-                {drivers.filter(d => d.isActive && !d.isBusy).length}
+                {stats.waitingDrivers !== undefined ? stats.waitingDrivers : 0}
               </span>
             </div>
           </div>
@@ -180,17 +231,34 @@ const DashboardPage = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-4 text-right text-xs font-semibold">رقم الطلب</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold">العميل</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold">اسم العميل</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold">اسم السائق</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold">نوع النقل</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold">الحالة</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold">تاريخ الطلب</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredOrders.map(order => (
                 <tr key={order.id} className="hover:bg-gray-50 text-xs text-gray-900">
-                  <td className="px-6 py-4 font-normal">{order.id}</td>
-                  <td className="px-6 py-4 font-normal">{order.clientName || "-"}</td>
-                  <td className="px-6 py-4 font-normal">{order.status}</td>
+                  <td className="px-6 py-4 font-normal">
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      {getStatusIcon(order.status)}
+                      <span className="font-normal text-primary-700">
+                        #{String(order.orderId || order.id).slice(-8)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 font-normal">{order.clientName || order.clientFirstName || "-"}</td>
+                  <td className="px-6 py-4 font-normal">{order.driverName || "-"}</td>
+                  <td className="px-6 py-4 font-normal">{order.cargoType || order.vehicleType || "-"}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-normal ${getStatusBadge(order.status)}`}>
+                      {normalizeStatus(order.status)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 font-normal">{formatDate(order.createdAt)}</td>
                   <td className="px-6 py-4">
                     <button
                       onClick={() => navigate(`/orders/${order.id}`)}
@@ -203,7 +271,7 @@ const DashboardPage = () => {
               ))}
               {filteredOrders.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-6 text-gray-500">
+                  <td colSpan={7} className="text-center py-6 text-gray-500">
                     لا يوجد طلبات
                   </td>
                 </tr>

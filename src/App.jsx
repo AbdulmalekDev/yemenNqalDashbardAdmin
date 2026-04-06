@@ -70,13 +70,13 @@ const App = () => {
         <Route path="/reports/roles" element={<ProtectedRoute allowedRoles={['manager']}><RolesPage /></ProtectedRoute>} />
 
         <Route path="/login" element={<LoginPage />} />
-        
+
         {/* إدارة المسؤوليين (محمية للمدير فقط) */}
         <Route path="/users" element={<ProtectedRoute allowedRoles={['manager']}><UserList /></ProtectedRoute>} />
         <Route path="/users/new" element={<ProtectedRoute allowedRoles={['manager']}><AddUser /></ProtectedRoute>} />
         <Route path="/users/edit/:id" element={<ProtectedRoute allowedRoles={['manager']}><EditUser /></ProtectedRoute>} />
         <Route path="/users/:id" element={<ProtectedRoute allowedRoles={['manager']}><UserProfilePage /></ProtectedRoute>} />
-        
+
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 

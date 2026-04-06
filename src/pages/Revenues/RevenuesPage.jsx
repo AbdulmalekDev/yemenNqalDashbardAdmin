@@ -169,8 +169,8 @@ const RevenuesPage = () => {
             <p className="text-gray-600">مراقبة وإدارة إيرادات النظام المالية</p>
           </div>
         </div>
-        
-        <ReportActions 
+
+        <ReportActions
           onRefresh={refetch}
           isLoading={isLoading}
         />

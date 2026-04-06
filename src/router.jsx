@@ -32,6 +32,7 @@ import UserList from './pages/Users/UserList';
 import AddUser from './pages/Users/AddUser';
 import EditUser from './pages/Users/EditUser';
 import UserProfilePage from './pages/Users/UserProfilePage';
+import NotificationsPage from './pages/Notifications/NotificationsPage';
 
 // React Query Client
 const queryClient = new QueryClient({
@@ -406,6 +407,14 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
 
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <NotificationsPage />
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -1,5 +1,9 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
+import api from '../services/api';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+const RECONNECT_DELAY_MS = 5000;
 
 const NotificationContext = createContext();
 
@@ -12,12 +16,115 @@ export const useNotification = () => {
 };
 
 export const NotificationProvider = ({ children }) => {
+    // --- Toast States (Existing) ---
     const [notification, setNotification] = useState({
         open: false,
         message: '',
-        severity: 'success', // 'success' | 'error' | 'info' | 'warning'
+        severity: 'success',
     });
 
+    // --- Persistent Notifications States (New) ---
+    const [notificationsList, setNotificationsList] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const eventSourceRef = useRef(null);
+    const retryCountRef = useRef(0);
+
+    // --- SSE Logic ---
+    const connectSSE = useCallback(() => {
+        const token = localStorage.getItem('adminToken');
+        if (!token) return;
+
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+        }
+
+        const url = `${API_BASE_URL}/notifications/stream?token=${encodeURIComponent(token)}`;
+        const es = new EventSource(url);
+        eventSourceRef.current = es;
+
+        es.onmessage = (event) => {
+            try {
+                const payload = JSON.parse(event.data);
+                if (payload.type === 'notifications_update') {
+                    const items = payload.data.map(item => ({
+                        ...item,
+                        createdAt: new Date(item.createdAt)
+                    }));
+                    setNotificationsList(items);
+                    setUnreadCount(payload.unreadCount);
+                    setLoading(false);
+                    retryCountRef.current = 0;
+                }
+            } catch (err) {
+                // Heartbeat or malformed data
+            }
+        };
+
+        es.onerror = () => {
+            es.close();
+            retryCountRef.current += 1;
+            const delay = Math.min(RECONNECT_DELAY_MS * retryCountRef.current, 30000);
+            setTimeout(connectSSE, delay);
+        };
+    }, []);
+
+    useEffect(() => {
+        connectSSE();
+        return () => {
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+            }
+        };
+    }, [connectSSE]);
+
+    // --- Notification Management Methods ---
+    const markAsRead = async (id) => {
+        try {
+            await api.put(`/notifications/${id}/read`);
+            // Update local state for immediate feedback
+            setNotificationsList(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        } catch (error) {
+            console.error("Failed to mark notification as read:", error);
+        }
+    };
+
+    const markAllAsRead = async () => {
+        try {
+            await api.put('/notifications/read/all');
+            setNotificationsList(prev => prev.map(n => ({ ...n, read: true })));
+            setUnreadCount(0);
+        } catch (error) {
+            console.error("Failed to mark all as read:", error);
+        }
+    };
+
+    const deleteAllNotifications = async () => {
+        try {
+            await api.delete('/notifications/delete/all');
+            setNotificationsList([]);
+            setUnreadCount(0);
+        } catch (error) {
+            console.error("Failed to delete all notifications:", error);
+        }
+    };
+
+    const deleteNotification = async (id) => {
+        try {
+            await api.delete(`/notifications/${id}`);
+            setNotificationsList(prev => prev.filter(n => n.id !== id));
+            // Update unread count if it was unread
+            const deleted = notificationsList.find(n => n.id === id);
+            if (deleted && !deleted.read) {
+                setUnreadCount(prev => Math.max(0, prev - 1));
+            }
+        } catch (error) {
+            console.error("Failed to delete notification:", error);
+        }
+    };
+
+    // --- Toast Methods (Existing) ---
     const showNotification = useCallback((message, severity = 'success') => {
         setNotification({
             open: true,
@@ -30,7 +137,7 @@ export const NotificationProvider = ({ children }) => {
         setNotification((prev) => ({ ...prev, open: false }));
     }, []);
 
-    // Auto-hide
+    // Auto-hide toast
     useEffect(() => {
         if (notification.open) {
             const timer = setTimeout(() => {
@@ -61,10 +168,19 @@ export const NotificationProvider = ({ children }) => {
     };
 
     return (
-        <NotificationContext.Provider value={{ showNotification }}>
+        <NotificationContext.Provider value={{ 
+            showNotification,
+            notificationsList,
+            unreadCount,
+            loading,
+            markAsRead,
+            markAllAsRead,
+            deleteAllNotifications,
+            deleteNotification
+        }}>
             {children}
 
-            {/* Global Snackbar UI (Tailwind based) */}
+            {/* Global Snackbar UI */}
             <div
                 className={`fixed bottom-6 right-6 z-[9999] transition-all duration-300 transform font-arabic ${notification.open ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'
                     }`}

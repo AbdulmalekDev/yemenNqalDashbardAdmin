@@ -69,6 +69,7 @@ const AddUser = () => {
         mutation.mutate({
             name: formData.name,
             email: formData.email,
+            phone: formData.phone,
             password: formData.password,
             role: formData.role
         });

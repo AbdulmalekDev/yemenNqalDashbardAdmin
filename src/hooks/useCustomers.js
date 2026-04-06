@@ -5,6 +5,7 @@ import {
     updateCustomerStatus as updateStatusAPI,
     addCustomer as addCustomerAPI,
     updateCustomer as updateCustomerAPI,
+    deleteCustomer as deleteCustomerAPI,
 } from "../services/customerService";
 
 // ==================== جلب جميع العملاء ====================
@@ -92,6 +93,17 @@ export const useUpdateCustomer = () => {
         onSuccess: (data, { id }) => {
             queryClient.invalidateQueries({ queryKey: ["customers"] });
             queryClient.invalidateQueries({ queryKey: ["customers", id] });
+        },
+    });
+};
+
+// ==================== حذف عميل ====================
+export const useDeleteCustomer = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id) => deleteCustomerAPI(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["customers"] });
         },
     });
 };

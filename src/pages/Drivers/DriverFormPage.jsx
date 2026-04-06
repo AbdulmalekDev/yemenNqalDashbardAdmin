@@ -58,9 +58,14 @@ const DriverFormPage = () => {
     // تعبئة البيانات في حالة التعديل
     useEffect(() => {
         if (isEdit && driver) {
+            let cleanPhone = (driver.phone || '').toString();
+            if (cleanPhone.startsWith('+967')) cleanPhone = cleanPhone.substring(4);
+            else if (cleanPhone.startsWith('967')) cleanPhone = cleanPhone.substring(3);
+            else if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
+
             reset({
                 name: driver.name || driver.firstName || '',
-                phone: driver.phone || '',
+                phone: cleanPhone,
                 email: driver.email || '',
                 vehicleType: driver.vehicleType || '',
                 vehicleModel: driver.vehicleModel || '',
@@ -93,6 +98,12 @@ const DriverFormPage = () => {
         try {
             setUploading(true);
             
+            // Format phone correctly before saving or dirty check
+            const formattedData = { ...data };
+            if (formattedData.phone && !formattedData.phone.startsWith('+967')) {
+                formattedData.phone = `+967${formattedData.phone}`;
+            }
+
             // رفع الصور إذا تم اختيارها
             const uploadedUrls = {};
             for (const [key, file] of Object.entries(files)) {
@@ -102,7 +113,7 @@ const DriverFormPage = () => {
             }
             
             // دمج روابط الصور الجديدة مع بيانات الفورم
-            const finalData = { ...data, ...uploadedUrls };
+            const finalData = { ...formattedData, ...uploadedUrls };
 
             if (isEdit) {
                 const dirtyData = getDirtyFields(finalData, driver);
@@ -125,7 +136,8 @@ const DriverFormPage = () => {
             navigate('/drivers');
         } catch (error) {
             console.error('Error saving driver:', error);
-            showNotification('حدث خطأ أثناء حفظ البيانات', 'error');
+            const errorMessage = error?.response?.data?.message || error?.original?.response?.data?.message || error?.message || 'حدث خطأ أثناء حفظ البيانات';
+            showNotification(errorMessage, 'error');
         } finally {
             setUploading(false);
         }
@@ -201,7 +213,7 @@ const DriverFormPage = () => {
                                     <input
                                         {...register('phone', {
                                             required: 'رقم الهاتف مطلوب',
-                                            pattern: { value: /^[0-9]{9}$/, message: 'يجب أن يكون الرقم 9 خانات' }
+                                            pattern: { value: /^7\d{8}$/, message: 'يجب أن يتكون رقم الهاتف من 9 أرقام ويبدأ بالرقم 7 (مثال: 777123456)' }
                                         })}
                                         placeholder="7xxxxxxxx"
                                         className={`w-full pr-11 pl-4 py-3 bg-gray-50 border-2 rounded-xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all ${errors.phone ? 'border-red-300 bg-red-50' : 'border-transparent'}`}
