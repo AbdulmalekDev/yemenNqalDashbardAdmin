@@ -1,5 +1,5 @@
 import React from "react";
-import ReportPDFGenerator from "../../utils/ReportPDFGenerator";
+import ReportService from "../../services/ReportService";
 
 export default function ReportButtons() {
   const driversColumns = [
@@ -41,36 +41,27 @@ export default function ReportButtons() {
   ];
 
   const handleDriversReport = async () => {
-    const reporter = await ReportPDFGenerator.init();
-    await reporter.addHeaderGlobal("تقرير السائقين", "/assets/images/logoYemen.png", driversData.length);
-    reporter.addTable(driversColumns.map(c => c.header), driversData.map(d => [
-      d.name, d.phone, d.completedTrips.toString(), d.cancelledTrips.toString(), d.rating.toString()
-    ]));
-    reporter.addSummary([
-      { label: "إجمالي الطلبات المكتملة", value: driversData.reduce((sum, r) => sum + r.completedTrips, 0) }
-    ]);
-    reporter.save("تقرير_السائقين.pdf");
+    await ReportService.generateReport(driversData, "drivers", {
+      title: "تقرير السائقين",
+      logoUrl: "/assets/images/logoYemen.png",
+      filename: "تقرير_السائقين.pdf"
+    });
   };
 
   const handleCustomersReport = async () => {
-    const reporter = await ReportPDFGenerator.init();
-    await reporter.addHeaderGlobal("تقرير العملاء", "/assets/images/logoYemen.png", customersData.length);
-    reporter.addTable(customersColumns.map(c => c.header), customersData.map(d => [
-      d.name, d.phone, d.email
-    ]));
-    reporter.save("تقرير_العملاء.pdf");
+    await ReportService.generateReport(customersData, "customers", {
+      title: "تقرير العملاء",
+      logoUrl: "/assets/images/logoYemen.png",
+      filename: "تقرير_العملاء.pdf"
+    });
   };
 
   const handleOrdersReport = async () => {
-    const reporter = await ReportPDFGenerator.init();
-    await reporter.addHeaderGlobal("تقرير الطلبات", "/assets/images/logoYemen.png", ordersData.length);
-    reporter.addTable(ordersColumns.map(c => c.header), ordersData.map(d => [
-      d.orderId, d.customerName, d.driverName, d.status, d.price.toString(), d.date
-    ]));
-    reporter.addSummary([
-      { label: "إجمالي المبيعات", value: `${ordersData.reduce((sum, r) => sum + r.price, 0)} ريال` }
-    ]);
-    reporter.save("تقرير_الطلبات.pdf");
+    await ReportService.generateReport(ordersData, "orders", {
+      title: "تقرير الطلبات",
+      logoUrl: "/assets/images/logoYemen.png",
+      filename: "تقرير_الطلبات.pdf"
+    });
   };
 
   return (

@@ -25,6 +25,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useDrivers } from '../../hooks/useDrivers';
 import { useDriverSSE } from '../../hooks/useDriverSSE';
+import { useTrackingSSE } from '../../hooks/useTrackingSSE';
 import { getActiveOrderByDriver } from '../../services/orderService';
 import toast from 'react-hot-toast';
 
@@ -38,6 +39,8 @@ const MAP_OPTIONS = {
   streetViewControl: false,
   rotateControl: false,
   fullscreenControl: true,
+  maxZoom: 19,
+  mapId: import.meta.env.VITE_GOOGLE_MAPS_ID || 'orbital-heaven-478118-d6', // استخدام المعرف الرسمي لربط الخريطة بالخدمات المتقدمة
   styles: [
     {
       "featureType": "all",
@@ -61,11 +64,13 @@ const MAP_OPTIONS = {
     }
   ]
 };
+const LIBRARIES = ['marker', 'places', 'geometry']; // وضع المكتبات كثابت لمنع إعادة تحميل السكريبت بشكل متكرر
 
 const TrackingPage = () => {
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
-  });
+    const { isLoaded, loadError } = useJsApiLoader({
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+        libraries: LIBRARIES,
+    });
 
   const { data: drivers, isLoading, isError, refetch } = useDrivers();
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -76,7 +81,7 @@ const TrackingPage = () => {
   // --- حالات تحسين الأداء المتقدمة ---
   const [showMap, setShowMap] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20); // عرض 20 سائق فقط في البداية
-  
+
   // تحميل المزيد من السائقين تدريجياً لتقليل حمل الـ DOM
   useEffect(() => {
     if (drivers) {
@@ -97,9 +102,13 @@ const TrackingPage = () => {
   const [activeOrder, setActiveOrder] = useState(null);
   const [directionsResponse, setDirectionsResponse] = useState(null);
   const [isFetchingRoute, setIsFetchingRoute] = useState(false);
+  const [driverLocationName, setDriverLocationName] = useState("جاري التحديد...");
 
-  // تفعيل التحديثات المباشرة عبر SSE من الباكيند
+  // تفعيل التحديثات المباشرة عبر SSE من الباكيند (لبيانات السائقين)
   useDriverSSE();
+
+  // تفعيل التحديثات المباشرة لجدول التتبع
+  const { trackingData } = useTrackingSSE();
 
   const onMapLoad = useCallback((mapInstance) => {
     setMap(mapInstance);
@@ -116,13 +125,24 @@ const TrackingPage = () => {
     return drivers.data || [];
   }, [drivers]);
 
-  // تصفية السائقين المتصلين فقط
+  // تصفية السائقين المتصلين فقط ودمج بيانات التتبع اللحظية معهم
   const onlineDrivers = useMemo(() => {
     return driversList.filter(d =>
       d.isOnline === true &&
       (searchTerm === "" || (d.name || "").toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [driversList, searchTerm]);
+    ).map(d => {
+      // دمج بيانات التتبع من جدول tracking بشكل فعّال
+      const liveData = trackingData[d.id];
+      return {
+        ...d,
+        lat: liveData?.lat || d.lat || d.currentLocation?.lat || d.currentLocation?.latitude || d.currentLocation?._latitude,
+        lng: liveData?.lng || d.lng || d.currentLocation?.lng || d.currentLocation?.longitude || d.currentLocation?._longitude,
+        speed: liveData?.speed || d.speed || 0,
+        heading: liveData?.heading || d.heading || 0,
+        lastLocationUpdate: liveData?.updatedAt
+      };
+    });
+  }, [driversList, searchTerm, trackingData]);
 
   // إحصائيات سريعة
   const stats = useMemo(() => {
@@ -135,6 +155,14 @@ const TrackingPage = () => {
   }, [onlineDrivers]);
 
   // استخدام useCallback لمنع إعادة تعريف الدالة في كل رندرة
+  // --- ربط السائق المحدد بالبيانات اللحظية (لضمان التحديث المباشر في النافذة المنبثقة) ---
+  const currentSelectedDriver = useMemo(() => {
+    if (!selectedDriver) return null;
+    // ابحث عن السائق في القائمة اللحظية التي يتم تحديثها عبر SSE للحصول على أحدث موقع وسرعة
+    // إذا لم يوجد (مثلاً أصبح أوفلاين)، نُبقي البيانات القديمة لمنع الاختفاء المفاجئ للنافذة
+    return onlineDrivers.find(d => d.id === selectedDriver.id) || selectedDriver;
+  }, [selectedDriver, onlineDrivers]);
+
   const handleFocusDriver = useCallback(async (driver) => {
     const rawLat = driver.lat || driver.currentLocation?.lat || driver.currentLocation?.latitude || driver.currentLocation?._latitude;
     const rawLng = driver.lng || driver.currentLocation?.lng || driver.currentLocation?.longitude || driver.currentLocation?._longitude;
@@ -144,43 +172,70 @@ const TrackingPage = () => {
       return;
     }
 
-    // إعادة ضبط المسار القديم
+    // إعادة ضبط المسار القديم بأمان شديد لتفادي انهيار الخريطة
     setDirectionsResponse(null);
     setActiveOrder(null);
-    setSelectedDriver(driver);
+
+    // خدعة تقنية: تفريغ السائق لثانية لإجبار React على تدمير مكون InfoWindow القديم من الذاكرة 
+    // قبل إنشاء واحد جديد بإحداثيات مختلفة، مما يمنع تعارض Google Maps الداخلي (Crash).
+    setSelectedDriver(null);
+    setDriverLocationName("جاري التحديد...");
 
     const lat = Number(rawLat);
     const lng = Number(rawLng);
 
-    if (map && lat && lng) {
-      map.panTo({ lat, lng });
-      map.setZoom(15);
-    }
+    setTimeout(async () => {
+      setSelectedDriver(driver);
 
-    // جلب الطلب النشط إذا كان السائق مشغولاً
-    if (driver.isBusy) {
-      setIsFetchingRoute(true);
-      try {
-        const order = await getActiveOrderByDriver(driver.id);
-        if (order) {
-          setActiveOrder(order);
-        } else {
-          toast.error("لا يوجد طلب نشط لهذا السائق حالياً", {
-            icon: '⚠️',
-            style: { borderRadius: '15px', fontWeight: 'bold' }
-          });
+      if (map && !isNaN(lat) && !isNaN(lng)) {
+        map.panTo({ lat, lng });
+        map.setZoom(15);
+
+        // جلب اسم الشارع/المدينة (Reverse Geocoding)
+        try {
+          if (window.google && window.google.maps && window.google.maps.Geocoder) {
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+              if (status === 'OK' && results[0]) {
+                setDriverLocationName(results[0].formatted_address);
+              } else {
+                console.warn('Geocoding notice:', status);
+                setDriverLocationName('موقع غير معروف');
+              }
+            });
+          } else {
+             setDriverLocationName('خدمة العناوين غير مفعلة');
+          }
+        } catch (err) {
+          setDriverLocationName('تعذر جلب العنوان');
         }
-      } catch (err) {
-        console.error("Error fetching active order:", err);
-      } finally {
-        setIsFetchingRoute(false);
       }
-    } else {
-      toast("السائق متاح حالياً ولا يوجد لديه طلب نشط", {
-        icon: 'ℹ️',
-        style: { borderRadius: '15px', fontWeight: 'bold' }
-      });
-    }
+
+      // جلب الطلب النشط إذا كان السائق مشغولاً
+      if (driver.isBusy) {
+        setIsFetchingRoute(true);
+        try {
+          const order = await getActiveOrderByDriver(driver.id);
+          if (order) {
+            setActiveOrder(order);
+          } else {
+            toast.error("لا يوجد طلب نشط لهذا السائق حالياً", {
+              icon: '⚠️',
+              style: { borderRadius: '15px', fontWeight: 'bold' }
+            });
+          }
+        } catch (err) {
+          console.error("Error fetching active order:", err);
+        } finally {
+          setIsFetchingRoute(false);
+        }
+      } else {
+        toast("السائق متاح حالياً ولا يوجد لديه طلب نشط", {
+          icon: 'ℹ️',
+          style: { borderRadius: '15px', fontWeight: 'bold' }
+        });
+      }
+    }, 50); // تأخير بسيط لضمان تنظيف DOM
   }, [map]); // تعتمد فقط على الـ map instance
 
   // معالجة نتيجة اتجاهات جوجل
@@ -277,11 +332,11 @@ const TrackingPage = () => {
             ) : onlineDrivers.length > 0 ? (
               <>
                 {onlineDrivers.slice(0, visibleCount).map(driver => (
-                  <MemoizedDriverCard 
-                    key={driver.id} 
-                    driver={driver} 
-                    isSelected={selectedDriver?.id === driver.id} 
-                    onClick={handleFocusDriver} 
+                  <MemoizedDriverCard
+                    key={driver.id}
+                    driver={driver}
+                    isSelected={currentSelectedDriver?.id === driver.id}
+                    onClick={handleFocusDriver}
                   />
                 ))}
                 {visibleCount < onlineDrivers.length && (
@@ -327,6 +382,7 @@ const TrackingPage = () => {
                   gridSize: 60,
                   minimumClusterSize: 2,
                   averageCenter: true, // تحسين الأداء
+                  maxZoom: 15, // إيقاف التجميع عند التقريب تجنباً لاختفاء الخريطة
                   styles: [
                     {
                       textColor: 'white',
@@ -341,11 +397,11 @@ const TrackingPage = () => {
                 {(clusterer) => (
                   <>
                     {onlineDrivers.map(driver => (
-                      <MemoizedMarker 
-                        key={driver.id} 
-                        driver={driver} 
-                        clusterer={clusterer} 
-                        onClick={handleFocusDriver} 
+                      <MemoizedMarker
+                        key={driver.id}
+                        driver={driver}
+                        clusterer={clusterer}
+                        onClick={handleFocusDriver}
                       />
                     ))}
                   </>
@@ -374,7 +430,6 @@ const TrackingPage = () => {
                       strokeColor: "#2563EB",
                       strokeWeight: 5,
                       strokeOpacity: 0.8,
-                      strokeDasharray: "1, 1", // للأسف polylineOptions لا تدعم داش اري مباشرة في JS API، سنحاول محاكاتها
                     }
                   }}
                 />
@@ -384,7 +439,7 @@ const TrackingPage = () => {
               {activeOrder && (
                 <>
                   {/* نقطة الاستلام - أزرق */}
-                  <Marker 
+                  <Marker
                     position={{
                       lat: Number(activeOrder.pickupLocation?.lat || activeOrder.pickupLocation?._latitude || activeOrder.pickupLocation?.latitude),
                       lng: Number(activeOrder.pickupLocation?.lng || activeOrder.pickupLocation?._longitude || activeOrder.pickupLocation?.longitude)
@@ -395,7 +450,7 @@ const TrackingPage = () => {
                     title="نقطة الاستلام"
                   />
                   {/* نقطة التسليم - أحمر */}
-                  <Marker 
+                  <Marker
                     position={{
                       lat: Number(activeOrder.dropoffLocation?.lat || activeOrder.dropoffLocation?._latitude || activeOrder.dropoffLocation?.latitude),
                       lng: Number(activeOrder.dropoffLocation?.lng || activeOrder.dropoffLocation?._longitude || activeOrder.dropoffLocation?.longitude)
@@ -408,40 +463,40 @@ const TrackingPage = () => {
                 </>
               )}
 
-              {selectedDriver && (selectedDriver.lat || selectedDriver.currentLocation) && (
+              {currentSelectedDriver && (currentSelectedDriver.lat || currentSelectedDriver.currentLocation) && (
                 <InfoWindow
                   position={{
-                    lat: Number(selectedDriver.lat || selectedDriver.currentLocation?.lat || selectedDriver.currentLocation?._latitude || selectedDriver.currentLocation?.latitude),
-                    lng: Number(selectedDriver.lng || selectedDriver.currentLocation?.lng || selectedDriver.currentLocation?._longitude || selectedDriver.currentLocation?.longitude)
+                    lat: Number(currentSelectedDriver.lat || currentSelectedDriver.currentLocation?.lat || currentSelectedDriver.currentLocation?._latitude || currentSelectedDriver.currentLocation?.latitude),
+                    lng: Number(currentSelectedDriver.lng || currentSelectedDriver.currentLocation?.lng || currentSelectedDriver.currentLocation?._longitude || currentSelectedDriver.currentLocation?.longitude)
                   }}
                   onCloseClick={() => setSelectedDriver(null)}
                 >
                   <div className="p-2 min-w-[200px] font-arabic" dir="rtl">
                     <div className="flex items-center gap-2 mb-3 border-b border-gray-100 pb-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${selectedDriver.isBusy ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentSelectedDriver.isBusy ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
                         <Truck className="w-4 h-4" />
                       </div>
                       <div>
-                        <h5 className="font-normal text-gray-900 text-sm">{selectedDriver.name || 'سائق'}</h5>
-                        <p className="text-[10px] text-gray-400 font-normal">{selectedDriver.vehicleType || 'مركبة نقل'}</p>
+                        <h5 className="font-normal text-gray-900 text-sm">{currentSelectedDriver.name || 'سائق'}</h5>
+                        <p className="text-[10px] text-gray-400 font-normal">{currentSelectedDriver.vehicleType || 'مركبة نقل'}</p>
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-[11px] font-normal">
                         <span className="text-gray-400">رقم السائق:</span>
-                        <span className="text-primary-600 italic">#{selectedDriver.id?.substring(0, 8) || '---'}</span>
+                        <span className="text-primary-600 italic">#{currentSelectedDriver.id?.substring(0, 8) || '---'}</span>
                       </div>
                       <div className="flex items-center justify-between text-[11px] font-bold">
                         <span className="text-gray-400">الحالة:</span>
-                        <span className={`${selectedDriver.isBusy ? 'text-orange-600' : 'text-green-600'}`}>
-                          {selectedDriver.isBusy ? 'في رحلة نشطة' : 'متصل ومتاح'}
+                        <span className={`${currentSelectedDriver.isBusy ? 'text-orange-600' : 'text-green-600'}`}>
+                          {currentSelectedDriver.isBusy ? 'في رحلة نشطة' : 'متصل ومتاح'}
                         </span>
                       </div>
                     </div>
 
                     <button
-                      onClick={() => navigate(`/drivers/${selectedDriver.id}`)}
+                      onClick={() => navigate(`/drivers/${currentSelectedDriver.id}`)}
                       className="w-full mt-4 py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black hover:bg-gray-800 transition-colors"
                     >
                       عرض الملف الشخصي الكامل
@@ -514,8 +569,8 @@ const MemoizedDriverCard = memo(({ driver, isSelected, onClick }) => {
     <div
       onClick={() => onClick(driver)}
       className={`p-4 rounded-3xl border transition-all cursor-pointer group ${isSelected
-          ? 'bg-primary-50 border-primary-200 shadow-lg shadow-primary-100 scale-[1.02]'
-          : 'bg-white border-gray-50 hover:border-gray-200 hover:bg-gray-50 shadow-sm'
+        ? 'bg-primary-50 border-primary-200 shadow-lg shadow-primary-100 scale-[1.02]'
+        : 'bg-white border-gray-50 hover:border-gray-200 hover:bg-gray-50 shadow-sm'
         }`}
     >
       <div className="flex items-center justify-between mb-3">

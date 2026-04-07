@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import ReportPDFGenerator from '../../utils/ReportPDFGenerator';
+import ReportService from '../../services/ReportService';
 import { useSettings } from '../../hooks/useSettings';
 import {
   UserCheck,
@@ -144,40 +144,11 @@ const CustomersPage = () => {
 
   const exportPDF = async () => {
     try {
-      const reporter = await ReportPDFGenerator.init();
-
-      // Top Header Global Standard
-      await reporter.addHeaderGlobal("تقرير بيانات العملاء الشامل", dynamicLogo, displayCustomers.length);
-
-      // Table Section
-      reporter.addSectionTitle("جدول تفصيلي لبيانات العملاء");
-
-      const headers = ["اسم العميل", "رقم الهاتف", "البريد الإلكتروني", "عدد الطلبات", "حالة النشاط"];
-      const data = displayCustomers.map((customer, index) => [
-        customer.name || '-',
-        customer.phone || '-',
-        customer.email || '-',
-        (customer.totalOrders || 0).toString(),
-        customer.status || 'نشط'
-      ]);
-
-      reporter.addTable(headers, data);
-
-      // Statistics Section
-      reporter.addSectionTitle("خلاصة وإحصائيات التقرير");
-
-      const totalCustomers = displayCustomers.length;
-      const activeCustomers = displayCustomers.filter(c => c.status === 'نشط').length;
-      const suspendedCustomers = displayCustomers.filter(c => c.status === 'محظور' || c.status === 'غير نشط').length;
-
-      reporter.addSummary([
-        { label: "إجمالي العملاء", value: totalCustomers },
-        { label: "العملاء النشطين", value: activeCustomers },
-        { label: "العملاء الموقوفين", value: suspendedCustomers },
-        { label: "إجمالي الطلبات", value: displayCustomers.reduce((s, c) => s + (c.totalOrders || 0), 0) }
-      ]);
-
-      reporter.save(`yemen_naql_customers_report_${new Date().getTime()}.pdf`);
+      await ReportService.generateReport(displayCustomers, 'customers', {
+        title: "تقرير بيانات العملاء الشامل",
+        logoUrl: dynamicLogo,
+        filename: `yemen_naql_customers_report_${new Date().getTime()}.pdf`
+      });
     } catch (err) {
       console.error("Error generating Global PDF:", err);
       alert("حدث خطأ أثناء استخراج التقرير العالمي");

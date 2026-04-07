@@ -289,8 +289,9 @@ const DriversPage = () => {
                 <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">الطلبات المكتملة</th>
                 <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">الطلبات الملغاة</th>
                 <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">التقييم</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">الحالة</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">الإجراءات</th>
+                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">حالة الاتصال</th>
+                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">حالة التوثيق</th>
+                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900 ">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -351,6 +352,13 @@ const DriversPage = () => {
                       </span>
                     </td>
 
+                    {/* Verification Status */}
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${getAccountStatusBadge(driver.verificationStatus)}`}>
+                        {normalizeVerificationStatus(driver.verificationStatus)}
+                      </span>
+                    </td>
+
                     {/* Actions */}
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2 space-x-reverse">
@@ -403,7 +411,7 @@ const DriversPage = () => {
                             <Pause className="w-4 h-4" />
                           </button>
                         )}
-                        
+
                         {hasPermission('manage_drivers') && (
                           <button
                             onClick={() => handleDeleteDriver(driver.id)}
