@@ -31,7 +31,7 @@ const Topbar = ({ onOpenSidebar, user, onLogout }) => {
             <Menu className="w-6 h-6" />
           </button>
 
-          <SearchBox className="hidden md:block" />
+          {/* <SearchBox className="hidden md:block" /> */}
         </div>
 
         <div className="flex items-center space-x-4 space-x-reverse h-full group">

@@ -14,9 +14,10 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useDashboard, useDashboardSSE } from "../../hooks/useDashboard";
+import { useDashboard } from "../../hooks/useDashboard";
 
 const StatCard = ({ title, value, icon: Icon, color, change }) => (
   <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
@@ -24,13 +25,13 @@ const StatCard = ({ title, value, icon: Icon, color, change }) => (
       <div className="flex-1 min-w-0">
         <p className="text-sm font-normal text-gray-600 truncate">{title}</p>
         <p className="text-xl font-normal text-gray-900 mt-2">{(value ?? 0).toLocaleString()}</p>
-        {change !== undefined && (
+        {/* {change !== undefined && (
           <p className={`text-sm mt-1 flex items-center ${change > 0 ? "text-green-600" : "text-red-600"}`}>
             <TrendingUp className="w-4 h-4 ml-1" />
             {change > 0 ? "+" : ""}
             {change}% من أمس
           </p>
-        )}
+        )} */}
       </div>
       <div className={`p-2 lg:p-3 rounded-full ${color} flex-shrink-0`}>
         <Icon className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
@@ -43,9 +44,6 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const { data: dashboard, isLoading, isError, error, refetch } = useDashboard();
   const [searchTerm, setSearchTerm] = useState("");
-
-  // تفعيل SSE للتحديثات الفورية
-  useDashboardSSE();
 
   // حالة التحميل
   if (isLoading) {
@@ -86,7 +84,8 @@ const DashboardPage = () => {
 
   const filteredOrders = recentOrders.filter(order =>
     order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.clientName?.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.clientName || order.clientFirstName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (order.driverName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // ==================== Helper Functions ====================
@@ -119,7 +118,7 @@ const DashboardPage = () => {
 
   const normalizeStatus = (status) => {
     const map = {
-      'no_driver': 'بانتظار السائق',
+      'no_driver': ' لا يوجد سائق',
       'accepted': 'مقبول',
       'searching': 'جاري',
       'completed': 'مكتمل',
@@ -151,14 +150,33 @@ const DashboardPage = () => {
         </div>
       </div>
 
+      {/* Global Dashboard Search */}
+      <div className="bg-white rounded-xl shadow-lg p-4 border border-gray-100">
+        <div className="relative group">
+          <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-primary-600 transition-colors" />
+          <input
+            type="text"
+            placeholder="بحث سـريع عن سائق، عميل، أو رقم طلب..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pr-12 pl-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all text-gray-900 placeholder-gray-400"
+          />
+        </div>
+        {searchTerm && (
+          <p className="mt-2 text-xs text-gray-500 mr-2 animate-pulse">
+            جاري تصفية النتائج بناءً على: <span className="text-primary-600 font-bold">{searchTerm}</span>
+          </p>
+        )}
+      </div>
+
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6">
-        <StatCard title="إجمالي العملاء" value={stats.totalCustomers} icon={UserCheck} color="bg-accent-500" change={8.5} />
-        <StatCard title="إجمالي السائقين" value={stats.totalDrivers} icon={Users} color="bg-accent-500" change={5.2} />
-        <StatCard title="السائقين المتصلين" value={stats.connectedDrivers} icon={Truck} color="bg-green-600" change={12.3} />
-        <StatCard title="الطلبات الجارية" value={stats.activeOrders} icon={Package} color="bg-accent-400" change={-3.1} />
-        <StatCard title="الطلبات المكتملة اليوم" value={stats.completedToday} icon={Activity} color="bg-accent-600" change={15.7} />
-        <StatCard title="إجمالي أرباح اليوم" value={stats.todayRevenue} icon={DollarSign} color="bg-green-700" change={22.1} />
+        <StatCard title="إجمالي العملاء" value={stats.totalCustomers} icon={UserCheck} color="bg-accent-500" />
+        <StatCard title="إجمالي السائقين" value={stats.totalDrivers} icon={Users} color="bg-accent-500" />
+        <StatCard title="السائقين المتصلين" value={stats.connectedDrivers} icon={Truck} color="bg-green-600" />
+        <StatCard title="الطلبات الجارية" value={stats.activeOrders} icon={Package} color="bg-accent-400" />
+        <StatCard title="الطلبات المكتملة اليوم" value={stats.completedToday} icon={Activity} color="bg-accent-600" />
+        <StatCard title="إجمالي أرباح اليوم" value={stats.todayRevenue} icon={DollarSign} color="bg-green-700" />
       </div>
 
       {/* Orders Chart & Driver Status */}
@@ -220,13 +238,12 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 gap-4 lg:gap-6">
         {/* Recent Orders Table */}
         <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 border border-gray-100 overflow-x-auto">
-          <input
-            type="text"
-            placeholder="بحث برقم الطلب أو الاسم..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full md:w-1/3 p-2 border rounded mb-4"
-          />
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-normal text-gray-900">الطلبات الأخيرة</h2>
+            <div className={`px-3 py-1 rounded-full text-xs font-bold ${searchTerm ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}`}>
+              {filteredOrders.length} نتيجة
+            </div>
+          </div>
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>

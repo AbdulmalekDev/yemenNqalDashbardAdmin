@@ -66,7 +66,7 @@ const OrdersPage = () => {
   };
 
   const getStatusText = (status) => {
-    if (status === 'no_driver') return 'بانتظار السائق';
+    if (status === 'no_driver') return 'لا يوجد سائق';
     return status || '-';
   };
 
@@ -87,7 +87,7 @@ const OrdersPage = () => {
   // دالة تطبيع الحالة: تحوّل أي قيمة (عربية أو إنجليزية) إلى النص العربي للعرض والمقارنة
   const normalizeStatus = (status) => {
     const map = {
-      'no_driver': 'بانتظار السائق',
+      'no_driver': 'لا يوجد سائق',
       'accepted': 'مقبول',
       'searching': 'جاري',
       'completed': 'مكتمل',
@@ -197,7 +197,7 @@ const OrdersPage = () => {
             className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
             <option value="all">الكل</option>
-            <option value="no_driver">بانتظار السائق</option>
+            <option value="no_driver">لا يوجد سائق</option>
             <option value="accepted">مقبول</option>
             <option value="searching">جاري</option>
             <option value="arrived">وصل موقع العميل</option>

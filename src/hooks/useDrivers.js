@@ -63,11 +63,18 @@ export const useUpdateDriverStatus = () => {
             // نحول الحالة للعربية للتخزين في الكاش المحلي ليتوافق مع الواجهات
             const dbStatus = status === 'accepted' ? 'مقبول' : status === 'rejected' ? 'مرفوض' : status;
 
-            queryClient.setQueryData(["drivers"], (old) => {
+            queryClient.setQueriesData({ queryKey: ["drivers"] }, (old) => {
                 if (!old) return old;
-                return old.map((driver) =>
+                // التعامل مع مصفوفة مباشرة أو هيكل { data, pagination }
+                const updateList = (list) => list.map((driver) =>
                     driver.id === id ? { ...driver, verificationStatus: dbStatus } : driver
                 );
+
+                if (Array.isArray(old)) return updateList(old);
+                if (old.data && Array.isArray(old.data)) {
+                    return { ...old, data: updateList(old.data) };
+                }
+                return old;
             });
 
             // Also update the single driver cache if it exists
@@ -171,12 +178,13 @@ export const useDriversSSE = () => {
                                 }
 
                                 // Merging real-time data with currently viewed page
-                                // Since SSE sends all drivers, for a robust paginated view we update the specific ones that are visible,
-                                // or simply replace the list if pagination matches (simplification: we map updates).
-                                const updatedPageData = old.data.map(existingDriver => {
-                                    const refreshed = updatedDriversList.find(d => d.id === existingDriver.id);
-                                    return refreshed || existingDriver;
-                                });
+                                // Filter out drivers that were deleted, then update the rest
+                                const updatedPageData = old.data
+                                    .filter(existingDriver => updatedDriversList.some(d => d.id === existingDriver.id))
+                                    .map(existingDriver => {
+                                        const refreshed = updatedDriversList.find(d => d.id === existingDriver.id);
+                                        return refreshed || existingDriver;
+                                    });
 
                                 return {
                                     ...old,

@@ -16,10 +16,12 @@ import { useRevenueStats, useRevenueSSE } from '../../hooks/useRevenues';
 import ReportService from '../../services/ReportService';
 import ExcelReportGenerator from '../../utils/ExcelReportGenerator';
 import { useSettings } from '../../hooks/useSettings';
+import { useAuth } from '../../context/AuthContext';
 
 const RevenuesPage = () => {
   const { data: revenueData, isLoading, isError, error, refetch } = useRevenueStats();
   const { data: settings } = useSettings(true);
+  const { hasRole } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState('هذا الشهر');
 
   // تفعيل SSE للتحديثات الفورية
@@ -173,6 +175,8 @@ const RevenuesPage = () => {
         <ReportActions
           onRefresh={refetch}
           isLoading={isLoading}
+          onExportPDF={hasRole('manager') ? onExportPDF : undefined}
+          onExportExcel={hasRole('manager') ? onExportExcel : undefined}
         />
       </div>
 

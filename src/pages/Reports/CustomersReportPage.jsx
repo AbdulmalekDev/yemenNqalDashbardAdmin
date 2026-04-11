@@ -99,8 +99,8 @@ const CustomersReportPage = () => {
     const stats = [
         { label: 'إجمالي العملاء', value: response?.pagination?.total || customersData.length, icon: UserCheck, colorClass: 'bg-blue-600' },
         { label: 'عملاء نشطين', value: customersData.filter(c => c.status === 'active' || c.status === 'نشط').length, icon: Calendar, colorClass: 'bg-green-600' },
-        { label: 'إجمالي الطلبات', value: customersData.reduce((acc, c) => acc + (c.orderCount || c.totalOrders || 0), 0), icon: Package, colorClass: 'bg-orange-600' },
-        { label: 'سجلات مفلترة', value: displayCustomers.length, icon: Activity, colorClass: 'bg-purple-600' },
+        { label: 'إجمالي الطلبات', value: customersData.reduce((acc, c) => acc + (c.orderCount || c.totalOrders || 0), 0), icon: Package, colorClass: 'bg-orange-600' }
+
     ];
 
     const exportPDF = async () => {
@@ -116,6 +116,8 @@ const CustomersReportPage = () => {
                 name: c.name || 'بدون اسم',
                 phone: c.phone || '-',
                 email: c.email || '-',
+                orderCount: c.orderCount || 0,
+                totalOrders: c.totalOrders || 0,
                 status: c.status || 'نشط'
             }));
 
@@ -254,7 +256,7 @@ const CustomersReportPage = () => {
                                         </div>
                                     </td>
                                     <td className="px-10 py-8 text-center">
-                                        <span className={`inline-flex items-center gap-2 px-6 py-2 rounded-2xl text-[10px] font-normal tracking-wider shadow-sm ${(customer.status === 'نشط' || customer.status === 'active') ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                                        <span className={`inline-flex items-center gap-2 px-6 py-2 rounded-2xl text-[10px] font-normal tracking-wider shadow-sm ${(!customer.status || customer.status === 'نشط' || customer.status === 'active') ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                                             }`}>
                                             <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                                             {customer.status || 'نشط'}
@@ -304,10 +306,10 @@ const CustomersReportPage = () => {
                                 <button
                                     key={p}
                                     onClick={() => setPage(p)}
-                                    className={`w-12 h-12 flex items-center justify-center rounded-2xl text-sm font-black transition-all ${page === p 
-                                        ? 'bg-primary-700 text-white shadow-lg shadow-primary-100 scale-110' 
+                                    className={`w-12 h-12 flex items-center justify-center rounded-2xl text-sm font-black transition-all ${page === p
+                                        ? 'bg-primary-700 text-white shadow-lg shadow-primary-100 scale-110'
                                         : 'hover:bg-primary-50 text-gray-400 hover:text-primary-700'
-                                    }`}
+                                        }`}
                                 >
                                     {p}
                                 </button>

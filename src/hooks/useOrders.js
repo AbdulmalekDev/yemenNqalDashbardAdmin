@@ -44,11 +44,17 @@ export const useUpdateOrderStatus = () => {
 
             const previousOrders = queryClient.getQueryData(["orders"]);
 
-            queryClient.setQueryData(["orders"], (old) => {
+            queryClient.setQueriesData({ queryKey: ["orders"] }, (old) => {
                 if (!old) return old;
-                return old.map((order) =>
+                const updateList = (list) => list.map((order) =>
                     order.id === id ? { ...order, status } : order
                 );
+
+                if (Array.isArray(old)) return updateList(old);
+                if (old.data && Array.isArray(old.data)) {
+                    return { ...old, data: updateList(old.data) };
+                }
+                return old;
             });
 
             // Also update the single order cache

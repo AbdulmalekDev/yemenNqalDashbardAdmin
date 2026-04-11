@@ -66,11 +66,28 @@ body {
 }
 
 /* Mobile-first responsive text */
-@media (max-width: 640px) {
-  h1 {
-    font-size: 1.5rem;
-  }
+/* التنسيقات الموحدة المطلوبة لجميع الصفحات حسب المعيار */
+h1 {
+  @apply text-3xl font-bold !important;
+}
 
+h2, h3, h4 {
+  @apply text-xl font-semibold !important;
+}
+
+th, th * {
+  @apply text-sm font-semibold !important;
+}
+
+td, td *, td p, td span {
+  @apply text-sm font-medium !important;
+}
+
+.small-text, small {
+  @apply text-xs !important;
+}
+
+@media (max-width: 640px) {
   h2 {
     font-size: 1.25rem;
   }

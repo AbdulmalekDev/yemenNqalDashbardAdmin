@@ -20,12 +20,13 @@ import {
   Zap,
   ShieldCheck,
   Activity,
-  Info
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useDrivers } from '../../hooks/useDrivers';
-import { useDriverSSE } from '../../hooks/useDriverSSE';
-import { useTrackingSSE } from '../../hooks/useTrackingSSE';
+
+
+
 import { getActiveOrderByDriver } from '../../services/orderService';
 import toast from 'react-hot-toast';
 
@@ -78,21 +79,25 @@ const TrackingPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
-  // --- حالات تحسين الأداء المتقدمة ---
+  // --- حالات تحسين الأداء المتقدمة (Performance Optimization) ---
   const [showMap, setShowMap] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(20); // عرض 20 سائق فقط في البداية
+  // نحدد عرض أول 20 سائق فقط لمنع اختناق الرام (Out of Memory) بمتصفح الإدارة لكثرة عناصر (DOM Nodes)
+  const [visibleCount, setVisibleCount] = useState(20); 
 
-  // تحميل المزيد من السائقين تدريجياً لتقليل حمل الـ DOM
+  // هذه الخوارزمية (Lazy Loading) أو التحميل التدريجي لتقليل حمل الـ DOM.
+  // بدلاً من رسم 1000 مقطع HTML في ثانية واحدة، نرسم 20 مقطع وبعد ثبات الشاشة نحمل البقية لضمان سلاسة الواجهة.
   useEffect(() => {
     if (drivers) {
       const timer = setTimeout(() => {
         setVisibleCount(onlineDrivers.length);
       }, 3000); // تحميل البقية بعد 3 ثواني من الاستقرار
+      // تنظيف المؤقت الزمني لمنع حدوث تسرب في الذاكرة (Memory Leak) عند تبديل الصفحات
       return () => clearTimeout(timer);
     }
   }, [drivers, searchTerm]);
 
-  // تأخير تحميل الخريطة لتحسين LCP (أول رسم للواجهة)
+  // تأخير استدعاء الخريطة الثقيلة لتحسين مقياس (LCP - Largest Contentful Paint)
+  // حيث أن الخرائط تحتاج لأكثر من 50 طلب شبكة للظهور، تأخيرها يجعل التطبيق يبدو صاروخياً للمستخدم للوهلة الأولى.
   useEffect(() => {
     const timer = setTimeout(() => setShowMap(true), 1500);
     return () => clearTimeout(timer);
@@ -104,11 +109,12 @@ const TrackingPage = () => {
   const [isFetchingRoute, setIsFetchingRoute] = useState(false);
   const [driverLocationName, setDriverLocationName] = useState("جاري التحديد...");
 
-  // تفعيل التحديثات المباشرة عبر SSE من الباكيند (لبيانات السائقين)
-  useDriverSSE();
+  // جلب بيانات التتبع اللحظية من كاش React Query (المحدّث بـ useRealTime)
+  const { data: trackingData = {} } = useQuery({
+    queryKey: ['tracking'],
+    staleTime: Infinity
+  });
 
-  // تفعيل التحديثات المباشرة لجدول التتبع
-  const { trackingData } = useTrackingSSE();
 
   const onMapLoad = useCallback((mapInstance) => {
     setMap(mapInstance);
@@ -126,12 +132,16 @@ const TrackingPage = () => {
   }, [drivers]);
 
   // تصفية السائقين المتصلين فقط ودمج بيانات التتبع اللحظية معهم
+  // نقطة قوة (للمناقشة): نستخدم (useMemo) لمنع React من إعادة معالجة المصفوفة المليونية مع كل رندرة صغيرة للشاشة.
+  // المصفوفة ستتم معالجتها *فقط* في حال تغير بيانات السائقين، أو تغير نص البحث. ويحافظ على المعالج.
   const onlineDrivers = useMemo(() => {
     return driversList.filter(d =>
       d.isOnline === true &&
       (searchTerm === "" || (d.name || "").toLowerCase().includes(searchTerm.toLowerCase()))
     ).map(d => {
-      // دمج بيانات التتبع من جدول tracking بشكل فعّال
+      // عملية دمج حية (Real-Time Fusion):
+      // نأخذ بيانات التتبع اللحظية القادمة من SSE. إذا انقطع الاتصال للحظات،
+      // نستخدم الإحداثيات الثابتة القديمة للسائق (Fallback Logic) حتى لا تختفي سيارته من الخريطة فجأة.
       const liveData = trackingData[d.id];
       return {
         ...d,
@@ -172,12 +182,13 @@ const TrackingPage = () => {
       return;
     }
 
-    // إعادة ضبط المسار القديم بأمان شديد لتفادي انهيار الخريطة
+    // إعادة ضبط المسار القديم لحماية الخريطة من التعليق
     setDirectionsResponse(null);
     setActiveOrder(null);
 
-    // خدعة تقنية: تفريغ السائق لثانية لإجبار React على تدمير مكون InfoWindow القديم من الذاكرة 
-    // قبل إنشاء واحد جديد بإحداثيات مختلفة، مما يمنع تعارض Google Maps الداخلي (Crash).
+    // هذه الخدعة الهندسية (Trick) مهمة جداً: نقوم بتفريغ السائق المحدد مؤقتاً بصفر (null)
+    // السبب: إجبار مكتبة React على حرق (Destroy) وتدمير نافذة InfoWindow القديمة من الذاكرة الرام (RAM)
+    // قبل إنشائها من جديد بالإحداثيات الحديثة، هذا يمنع تعارض مكتبة Google Maps وانهيار المتصفح (Crash).
     setSelectedDriver(null);
     setDriverLocationName("جاري التحديد...");
 
@@ -524,9 +535,12 @@ const TrackingPage = () => {
   );
 };
 
-// --- المكونات الفرعية الجاهزة للإنتاج (Performance Optimized) ---
+// --- المكونات الفرعية الجاهزة للإنتاج (Performance Optimized Components) ---
 
-// 1. الماركر المحفوظ (Memoized Driver Marker)
+// 1. الماركر المحفوظ في الذاكرة (Memoized Driver Marker)
+// لماذا استخدمنا memo؟
+// في الخريطة الطبيعية، أي تغير بسيط بالشاشة (مثلا كتابة حرف في مربع البحث) سيؤدي لإعادة رسم الجرافيكس لجميع السيارات بالخريطة!
+// هذه الدالة توقف إعادة الرسم (Re-render) المجهد، ولا تقوم برسم السيارة من جديد *إلا إذا* تحرك مكانها الحقيقي فعلاً، مما يوفر أداء خيالي.
 const MemoizedMarker = memo(({ driver, clusterer, onClick }) => {
   const latRaw = driver.lat || driver.currentLocation?.lat || driver.currentLocation?._latitude || driver.currentLocation?.latitude;
   const lngRaw = driver.lng || driver.currentLocation?.lng || driver.currentLocation?._longitude || driver.currentLocation?.longitude;
@@ -538,11 +552,11 @@ const MemoizedMarker = memo(({ driver, clusterer, onClick }) => {
   return (
     <Marker
       position={{ lat, lng }}
-      clusterer={clusterer}
+      clusterer={clusterer} // دمج الماركر داخل المجمع (Clusterer) بدلاً من تركه حراً لتجنب زحمة الخريطة عند تصغيرها
       onClick={() => onClick(driver)}
       icon={{
-        path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z",
-        fillColor: driver.isBusy ? "#F97316" : "#22C55E",
+        path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z", // أيقونة فيكتور (SVG) لأنها أخف من تحميل الصور العادية
+        fillColor: driver.isBusy ? "#F97316" : "#22C55E", // اللون البرتقالي للسائق في مهمة، والأخضر للمتاح
         fillOpacity: 1,
         strokeWeight: 2,
         strokeColor: "#ffffff",
@@ -552,7 +566,8 @@ const MemoizedMarker = memo(({ driver, clusterer, onClick }) => {
     />
   );
 }, (prevProps, nextProps) => {
-  // لا تقم بإعادة رندرة الماركر إلا إذا تغير الموقع أو الحالة أو الاسم
+  // دالة الشروط المعمارية للرسم: 
+  // تخبر الرياكت ألا ينفذ الكود بالأعلى إطلاقاً، وتعامله كصورة مخبأة (Cached) طالما هذه القيم لم تتغير.
   return (
     prevProps.driver.lat === nextProps.driver.lat &&
     prevProps.driver.lng === nextProps.driver.lng &&

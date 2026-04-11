@@ -384,8 +384,12 @@ class ReportService {
                 }
             };
         }
+        // customers type (also used as default fallback)
+        // Headers are reversed for RTL, so index 0 in colStyles = last header visually
+        // Reversed order: [حالة النشاط, عدد الطلبات, البريد الإلكتروني, رقم الهاتف, اسم العميل]
+        // Index:            0              1              2                3            4
         return {
-            headers: ["اسم العميل ", "رقم الهاتف", "البريد الإلكتروني", "عدد الطلبات", "حالة النشاط "],
+            headers: ["اسم العميل", "رقم الهاتف", "البريد الإلكتروني", "عدد الطلبات", "حالة النشاط"],
             dataMapping: (item, s) => [
                 s.processArabicText(item.name || '-'),
                 s.processArabicText((item.phone || '').replace(/^\+967|^967/, '') || '-'),
@@ -394,9 +398,11 @@ class ReportService {
                 s.processArabicText(item.status || 'نشط')
             ],
             colStyles: {
-                0: { cellWidth: 30, halign: 'center' }, // Status
-                3: { cellWidth: 40, halign: 'center' }, // Order Count (Increased to 40)
-                4: { cellWidth: 55 } // Name
+                0: { cellWidth: 28, halign: 'center' }, // حالة النشاط (reversed)
+                1: { cellWidth: 28, halign: 'center' }, // عدد الطلبات (reversed)
+                2: { cellWidth: 52 },                    // البريد الإلكتروني (reversed)
+                3: { cellWidth: 32 },                    // رقم الهاتف (reversed)
+                4: { cellWidth: 40 }                     // اسم العميل (reversed)
             }
         };
     }

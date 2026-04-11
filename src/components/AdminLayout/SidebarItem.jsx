@@ -8,6 +8,13 @@ const SidebarItem = ({ item, isOpen, onToggle, onClick }) => {
 
   if (item.children) {
     const isChildActive = item.children.some(child => location.pathname === child.path);
+    
+    // فتح القائمة تلقائياً إذا كان أحد أبنائها نشطاً
+    React.useEffect(() => {
+        if (isChildActive && !isOpen) {
+            onToggle(item.id);
+        }
+    }, [isChildActive, isOpen, item.id, onToggle]);
 
     return (
       <div className="space-y-1">

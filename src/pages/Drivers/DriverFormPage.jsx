@@ -33,9 +33,12 @@ const DriverFormPage = () => {
     const updateDriver = useUpdateDriver();
 
     const [files, setFiles] = useState({
-        idCardImage: null,
-        licenseImage: null,
-        vehicleDocumentImage: null,
+        idFrontImage: null,
+        idBackImage: null,
+        passportImage: null,
+        driverLicense: null,
+        vehicleLicense: null,
+        vehicleImage: null,
     });
     const [uploading, setUploading] = useState(false);
 
@@ -205,6 +208,34 @@ const DriverFormPage = () => {
 
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-gray-700 flex items-center space-x-1 space-x-reverse">
+                                    <span>نوع الهوية</span>
+                                    <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    {...register('identityType')}
+                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
+                                >
+                                    <option value="national_id">هوية وطنية</option>
+                                    <option value="passport">جواز سفر</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-gray-700 flex items-center space-x-1 space-x-reverse">
+                                    <span>رقم الهوية / الجواز</span>
+                                </label>
+                                <div className="relative group">
+                                    <Hash className="absolute right-3 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                                    <input
+                                        {...register('nationalId')}
+                                        placeholder="مثال: 0101XXXXXXXX"
+                                        className="w-full pr-11 pl-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-gray-700 flex items-center space-x-1 space-x-reverse">
                                     <span>رقم الهاتف</span>
                                     <span className="text-red-500">*</span>
                                 </label>
@@ -305,43 +336,95 @@ const DriverFormPage = () => {
                             <h3 className="text-lg font-bold text-gray-900">المستندات الرسمية</h3>
                         </div>
 
-                        <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {/* الوثائق بناءً على نوع الهوية */}
+                            <div className="space-y-2 md:col-span-3">
+                                <h4 className="text-sm font-bold text-primary-700 border-b pb-2 mb-4">وثائق إثبات الشخصية</h4>
+                            </div>
+
+                            {/* إذا اختار جواز سفر */}
+                            {register('identityType').value === 'passport' ? (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-gray-700">صورة جواز السفر</label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => handleFileChange(e, 'passportImage')}
+                                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                                    />
+                                    {driver?.passportImage && !files.passportImage && (
+                                        <p className="text-xs text-green-600 mt-1">✓ متوفرة</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-gray-700">الهوية (الوجه الأمامي)</label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => handleFileChange(e, 'idFrontImage')}
+                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                                        />
+                                        {driver?.idFrontImage && !files.idFrontImage && (
+                                            <p className="text-xs text-green-600 mt-1">✓ متوفرة</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-gray-700">الهوية (الوجه الخلفي)</label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => handleFileChange(e, 'idBackImage')}
+                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                                        />
+                                        {driver?.idBackImage && !files.idBackImage && (
+                                            <p className="text-xs text-green-600 mt-1">✓ متوفرة</p>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+
+                            <div className="space-y-2 md:col-span-3">
+                                <h4 className="text-sm font-bold text-primary-700 border-b pb-2 mb-4 mt-4">وثائق القيادة والمركبة</h4>
+                            </div>
+
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-gray-700">صورة الهوية الوطنية</label>
+                                <label className="text-sm font-bold text-gray-700">رخصة القيادة</label>
                                 <input
                                     type="file"
                                     accept="image/*"
-                                    onChange={(e) => handleFileChange(e, 'idCardImage')}
+                                    onChange={(e) => handleFileChange(e, 'driverLicense')}
                                     className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                                 />
-                                {driver?.idCardImage && !files.idCardImage && (
-                                    <p className="text-xs text-green-600 mt-1">✓ تم رفع الصورة مسبقاً</p>
+                                {driver?.driverLicense && !files.driverLicense && (
+                                    <p className="text-xs text-green-600 mt-1">✓ متوفرة</p>
                                 )}
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-gray-700">صورة رخصة القيادة</label>
+                                <label className="text-sm font-bold text-gray-700">ملكية المركبة</label>
                                 <input
                                     type="file"
                                     accept="image/*"
-                                    onChange={(e) => handleFileChange(e, 'licenseImage')}
+                                    onChange={(e) => handleFileChange(e, 'vehicleLicense')}
                                     className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                                 />
-                                {driver?.licenseImage && !files.licenseImage && (
-                                    <p className="text-xs text-green-600 mt-1">✓ تم رفع الصورة مسبقاً</p>
+                                {driver?.vehicleLicense && !files.vehicleLicense && (
+                                    <p className="text-xs text-green-600 mt-1">✓ متوفرة</p>
                                 )}
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-gray-700">صور أوراق المركبة</label>
+                                <label className="text-sm font-bold text-gray-700">صورة المركبة</label>
                                 <input
                                     type="file"
                                     accept="image/*"
-                                    onChange={(e) => handleFileChange(e, 'vehicleDocumentImage')}
+                                    onChange={(e) => handleFileChange(e, 'vehicleImage')}
                                     className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                                 />
-                                {driver?.vehicleDocumentImage && !files.vehicleDocumentImage && (
-                                    <p className="text-xs text-green-600 mt-1">✓ تم رفع الصورة مسبقاً</p>
+                                {driver?.vehicleImage && !files.vehicleImage && (
+                                    <p className="text-xs text-green-600 mt-1">✓ متوفرة</p>
                                 )}
                             </div>
                         </div>

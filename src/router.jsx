@@ -19,7 +19,7 @@ import CustomerProfilePage from './pages/Customers/CustomerProfilePage';
 import CustomerFormPage from './pages/Customers/CustomerFormPage';
 import OrdersPage from './pages/Orders/OrdersPage';
 import OrderDetailsPage from './pages/Orders/OrderDetailsPage';
-import TrackingPage from './pages/Tracking/TrackingPage';
+// import TrackingPage from './pages/Tracking/TrackingPage';
 import VerificationPage from './pages/Verification/VerificationPage';
 import RevenuesPage from './pages/Revenues/RevenuesPage';
 import SettingsPage from './pages/Settings/SettingsPage';
@@ -276,7 +276,7 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
 
-      <Route path="/tracking" element={
+      {/* <Route path="/tracking" element={
         <ProtectedRoute>
           <PermissionRoute requiredPermission="view_tracking">
             <AdminLayout>
@@ -284,7 +284,7 @@ const AppRoutes = () => {
             </AdminLayout>
           </PermissionRoute>
         </ProtectedRoute>
-      } />
+      } /> */}
 
       <Route path="/verification" element={
         <ProtectedRoute>

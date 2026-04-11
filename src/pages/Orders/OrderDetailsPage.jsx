@@ -79,10 +79,10 @@ const OrderDetailsPage = () => {
       : ts.seconds
         ? new Date(ts.seconds * 1000)
         : new Date(ts);
-    
+
     // Check if valid date
     if (isNaN(date.getTime())) return '-';
-    
+
     return date.toLocaleString('ar-SA', {
       year: 'numeric',
       month: 'numeric',
@@ -273,7 +273,7 @@ const OrderDetailsPage = () => {
                   <p className="text-sm text-gray-500">الاسم الكامل</p>
                 </div>
               </div>
-              
+
               <div className="pt-3 border-t border-gray-50 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">رقم الهاتف:</span>

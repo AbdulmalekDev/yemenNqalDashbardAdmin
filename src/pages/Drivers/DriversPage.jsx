@@ -265,9 +265,9 @@ const DriversPage = () => {
             className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
             <option value="all">الكل</option>
-            <option value="مقبول">مقبول</option>
-            <option value="معلق">معلق</option>
-            <option value="مرفوض">مرفوض</option>
+            <option value="accepted">مقبول</option>
+            <option value="pending">معلق</option>
+            <option value="rejected">مرفوض</option>
           </select>
 
           <div className="flex items-center justify-center bg-primary-50 rounded-lg px-4 py-2">

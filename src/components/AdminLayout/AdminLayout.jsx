@@ -9,13 +9,26 @@ import MobileOverlay from './MobileOverlay';
 
 const AdminLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [openSubmenus, setOpenSubmenus] = useState({});
+  const [openSubmenus, setOpenSubmenus] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_submenus');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
   const navigate = useNavigate();
   const { user, logout, hasPermission } = useAuth();
   const { data: settings } = useSettings();
 
   // تفعيل التحديثات الفورية لجميع الصفحات
   useRealTime();
+
+  // حفظ حالة القوائم عند التغيير
+  React.useEffect(() => {
+    localStorage.setItem('sidebar_submenus', JSON.stringify(openSubmenus));
+  }, [openSubmenus]);
 
   const handleLogout = () => {
     logout();

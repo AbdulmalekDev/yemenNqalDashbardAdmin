@@ -48,13 +48,13 @@ export const ADMIN_MENU_ITEMS = [
     roles: ['default', 'supervisor', 'manager'], 
     permission: 'view_orders' 
   },
-  { 
-    path: '/tracking', 
-    icon: MapPin, 
-    label: 'التتبع المباشر', 
-    roles: ['default', 'supervisor', 'manager'], 
-    permission: 'view_tracking' 
-  },
+  // { 
+  //   path: '/tracking', 
+  //   icon: MapPin, 
+  //   label: 'التتبع المباشر', 
+  //   roles: ['default', 'supervisor', 'manager'], 
+  //   permission: 'view_tracking' 
+  // },
   { 
     path: '/revenues', 
     icon: DollarSign, 

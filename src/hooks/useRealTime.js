@@ -32,24 +32,49 @@ export const useRealTime = () => {
             switch (type) {
                 // ── السائقون ──────────────────────────────────────────────────
                 case "drivers/list":
-                    // تحديث كاش القائمة الكاملة
                     queryClient.setQueryData(["drivers"], data);
                     break;
 
                 case "drivers/added":
-                    // إضافة سائق جديد للكاش دون إعادة الجلب
                     queryClient.setQueryData(["drivers"], (old = []) => {
                         const exists = old.some((d) => d.id === data.id);
                         return exists ? old : [data, ...old];
                     });
+                    // تحديث إحصائيات لوحة التحكم
+                    queryClient.setQueryData(["dashboard"], (old) => {
+                        if (!old || !old.stats) return old;
+                        return { 
+                            ...old, 
+                            stats: { 
+                                ...old.stats, 
+                                totalDrivers: old.stats.totalDrivers + 1,
+                                offlineDrivers: (old.stats.offlineDrivers || 0) + 1 
+                            } 
+                        };
+                    });
                     break;
 
                 case "drivers/updated":
-                    // تحديث السائق المعدّل في القائمة
-                    queryClient.setQueryData(["drivers"], (old = []) =>
-                        old.map((d) => (d.id === data.id ? { ...d, ...data } : d))
-                    );
-                    // تحديث كاش السائق الفردي أيضاً إن وُجد
+                    queryClient.setQueryData(["drivers"], (old = []) => {
+                        const updatedList = old.map((d) => (d.id === data.id ? { ...d, ...data } : d));
+                        // تحديث الإحصائيات إذا تغيرت حالة الاتصال
+                        const oldDoc = old.find(d => d.id === data.id);
+                        if (oldDoc && data.isOnline !== undefined && oldDoc.isOnline !== data.isOnline) {
+                            queryClient.setQueryData(["dashboard"], (dash) => {
+                                if (!dash || !dash.stats) return dash;
+                                const isOnline = data.isOnline;
+                                return {
+                                    ...dash,
+                                    stats: {
+                                        ...dash.stats,
+                                        connectedDrivers: dash.stats.connectedDrivers + (isOnline ? 1 : -1),
+                                        offlineDrivers: dash.stats.offlineDrivers + (isOnline ? -1 : 1)
+                                    }
+                                };
+                            });
+                        }
+                        return updatedList;
+                    });
                     queryClient.setQueryData(["drivers", data.id], (old) =>
                         old ? { ...old, ...data } : data
                     );
@@ -59,6 +84,10 @@ export const useRealTime = () => {
                     queryClient.setQueryData(["drivers"], (old = []) =>
                         old.filter((d) => d.id !== data.id)
                     );
+                    queryClient.setQueryData(["dashboard"], (old) => {
+                        if (!old || !old.stats) return old;
+                        return { ...old, stats: { ...old.stats, totalDrivers: Math.max(0, old.stats.totalDrivers - 1) } };
+                    });
                     break;
 
                 // ── الطلبات ───────────────────────────────────────────────────
@@ -71,15 +100,36 @@ export const useRealTime = () => {
                         const exists = old.some((o) => o.id === data.id);
                         return exists ? old : [data, ...old];
                     });
+                    queryClient.setQueryData(["dashboard"], (old) => {
+                        if (!old || !old.stats) return old;
+                        return { 
+                            ...old, 
+                            stats: { ...old.stats, activeOrders: old.stats.activeOrders + 1 } 
+                        };
+                    });
                     break;
 
                 case "orders/updated":
                     queryClient.setQueryData(["orders"], (old = []) =>
                         old.map((o) => (o.id === data.id ? { ...o, ...data } : o))
                     );
-                    queryClient.setQueryData(["orders", data.id], (old) =>
-                        old ? { ...old, ...data } : data
-                    );
+                    // تحديث الإحصائيات (مثلاً إذا اكتمل الطلب)
+                    queryClient.setQueryData(["dashboard"], (dash) => {
+                        if (!dash || !dash.stats) return dash;
+                        const isCompleted = ["completed", "rated", "مكتمل"].includes(data.status);
+                        if (isCompleted) {
+                            return {
+                                ...dash,
+                                stats: {
+                                    ...dash.stats,
+                                    activeOrders: Math.max(0, dash.stats.activeOrders - 1),
+                                    completedToday: dash.stats.completedToday + 1,
+                                    todayRevenue: dash.stats.todayRevenue + Number(data.price || data.estimatedPrice || 0)
+                                }
+                            };
+                        }
+                        return dash;
+                    });
                     break;
 
                 case "orders/deleted":
@@ -98,14 +148,18 @@ export const useRealTime = () => {
                         const exists = old.some((c) => c.id === data.id);
                         return exists ? old : [data, ...old];
                     });
+                    queryClient.setQueryData(["dashboard"], (old) => {
+                        if (!old || !old.stats) return old;
+                        return { 
+                            ...old, 
+                            stats: { ...old.stats, totalCustomers: old.stats.totalCustomers + 1 } 
+                        };
+                    });
                     break;
 
                 case "customers/updated":
                     queryClient.setQueryData(["customers"], (old = []) =>
                         old.map((c) => (c.id === data.id ? { ...c, ...data } : c))
-                    );
-                    queryClient.setQueryData(["customers", data.id], (old) =>
-                        old ? { ...old, ...data } : data
                     );
                     break;
 
@@ -113,16 +167,61 @@ export const useRealTime = () => {
                     queryClient.setQueryData(["customers"], (old = []) =>
                         old.filter((c) => c.id !== data.id)
                     );
+                    queryClient.setQueryData(["dashboard"], (old) => {
+                        if (!old || !old.stats) return old;
+                        return { 
+                            ...old, 
+                            stats: { ...old.stats, totalCustomers: Math.max(0, old.stats.totalCustomers - 1) } 
+                        };
+                    });
                     break;
 
-                // ── الإيرادات ─────────────────────────────────────────────────
                 case "revenues/list":
                     queryClient.setQueryData(["revenues"], data);
                     break;
 
+                // ── التتبع ────────────────────────────────────────────────────
+                case "tracking/added":
+                case "tracking/updated":
+                    queryClient.setQueryData(["tracking"], (old = {}) => ({
+                        ...old,
+                        [data.id]: data
+                    }));
+                    break;
+
+                case "tracking/deleted":
+                    queryClient.setQueryData(["tracking"], (old = {}) => {
+                        const newTracking = { ...old };
+                        delete newTracking[data.id];
+                        return newTracking;
+                    });
+                    break;
+
+                // ── التنبيهات ──────────────────────────────────────────────────
+                case "notifications/added":
+                    queryClient.setQueryData(["notifications"], (old = []) => {
+                        const exists = old.some(n => n.id === data.id);
+                        if (exists) return old;
+                        return [data, ...old].slice(0, 50); // الاحتفاظ بآخر 50
+                    });
+                    // قد ترغب في تحديث عداد التنبيهات غير المقروءة هنا لو كان مستقلاً
+                    break;
+
+                case "notifications/updated":
+                    queryClient.setQueryData(["notifications"], (old = []) =>
+                        old.map(n => n.id === data.id ? { ...n, ...data } : n)
+                    );
+                    break;
+
+                case "notifications/deleted":
+                    queryClient.setQueryData(["notifications"], (old = []) =>
+                        old.filter(n => n.id !== data.id)
+                    );
+                    break;
+
                 // ── حالة الاتصال ──────────────────────────────────────────────
                 case "connection/established":
-                    retryCountRef.current = 0; // إعادة تعيين عداد المحاولات عند نجاح الاتصال
+                    retryCountRef.current = 0; 
                     break;
 
                 case "error":

@@ -7,82 +7,43 @@ const RECONNECT_DELAY_MS = 5000;
 /**
  * useNotifications - هوك لمتابعة التنبيهات عبر SSE من الباكيند مباشرة
  */
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../services/api';
+
+/**
+ * useNotifications - هوك معدل يعتمد على React Query والبث المركزي الموحد
+ */
 export const useNotifications = () => {
-    const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const eventSourceRef = useRef(null);
-    const retryCountRef = useRef(0);
+    const queryClient = useQueryClient();
 
-    const connectSSE = useCallback(() => {
-        const token = localStorage.getItem('adminToken');
-        if (!token) return;
+    // جلب الإشعارات كاستعلام عادي (سيتم تحديثه عبر useRealTime)
+    const { data: notifications = [], isLoading } = useQuery({
+        queryKey: ['notifications'],
+        queryFn: async () => {
+            const res = await api.get('/notifications');
+            return res.data;
+        },
+        staleTime: Infinity, // التحديثات تأتي عبر SSE فقط بعد الجلب الأول
+    });
 
-        // إغلاق أي اتصال قديم
-        if (eventSourceRef.current) {
-            eventSourceRef.current.close();
-        }
+    const unreadCount = notifications.filter(n => !n.read).length;
 
-        const url = `${API_BASE_URL}/notifications/stream?token=${encodeURIComponent(token)}`;
-        const es = new EventSource(url);
-        eventSourceRef.current = es;
+    const markAsReadMutation = useMutation({
+        mutationFn: (id) => api.put(`/notifications/${id}/read`),
+        onSuccess: () => queryClient.invalidateQueries(['notifications'])
+    });
 
-        es.onmessage = (event) => {
-            try {
-                const payload = JSON.parse(event.data);
-                if (payload.type === 'notifications_update') {
-                    const items = payload.data.map(item => ({
-                        ...item,
-                        createdAt: new Date(item.createdAt)
-                    }));
-                    setNotifications(items);
-                    setUnreadCount(payload.unreadCount);
-                    setLoading(false);
-                    retryCountRef.current = 0;
-                }
-            } catch (err) {
-                // Heartbeat or malformed data
-            }
-        };
-
-        es.onerror = () => {
-            es.close();
-            retryCountRef.current += 1;
-            const delay = Math.min(RECONNECT_DELAY_MS * retryCountRef.current, 30000);
-            setTimeout(connectSSE, delay);
-        };
-    }, []);
-
-    useEffect(() => {
-        connectSSE();
-        return () => {
-            if (eventSourceRef.current) {
-                eventSourceRef.current.close();
-            }
-        };
-    }, [connectSSE]);
-
-    const markAsRead = async (id) => {
-        try {
-            await api.put(`/notifications/${id}/read`);
-        } catch (error) {
-            console.error("Failed to mark notification as read:", error);
-        }
-    };
-
-    const markAllAsRead = async () => {
-        try {
-            await api.put('/notifications/read/all');
-        } catch (error) {
-            console.error("Failed to mark all as read:", error);
-        }
-    };
+    const markAllAsReadMutation = useMutation({
+        mutationFn: () => api.put('/notifications/read/all'),
+        onSuccess: () => queryClient.invalidateQueries(['notifications'])
+    });
 
     return {
         notifications,
         unreadCount,
-        loading,
-        markAsRead,
-        markAllAsRead
+        loading: isLoading,
+        markAsRead: (id) => markAsReadMutation.mutate(id),
+        markAllAsRead: () => markAllAsReadMutation.mutate()
     };
 };
+
